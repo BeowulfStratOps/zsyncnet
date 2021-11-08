@@ -81,8 +81,6 @@ namespace zsyncnet
 
         public static List<BlockSum> ComputeCheckSums(Stream input, int weakLength, int strongLength, int blockSize)
         {
-            // TODO: fix weak checksum length?
-
             var result = new List<BlockSum>();
 
             var count = 0;
@@ -96,7 +94,7 @@ namespace zsyncnet
                     block = Pad(block, read, blockSize, 0);
                 }
 
-                var weakCheckSum = (ushort)ZsyncUtil.ComputeRsum(block);
+                var weakCheckSum = (ushort)ZsyncUtil.ComputeRsum(block, weakLength);
                 var strongCheckSum = ZsyncUtil.Md4Hash(block.ToArray());
                 Array.Resize(ref strongCheckSum, strongLength);
 

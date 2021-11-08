@@ -6,30 +6,26 @@ namespace zsyncnet
 {
     public static class ZsyncUtil
     {
-        public static uint ComputeRsum(byte[] block)
+        public static uint ComputeRsum(byte[] block, int checkSumBytes)
         {
-            short a = 0;
-            short b = 0;
+            ushort a = 0;
+            ushort b = 0;
             for (int i = 0, l = block.Length; i < block.Length; i++, l--)
             {
-                short val = ToUnsigned(block[i]);
-                a += val;
-                b += (short) (l * val);
-
+                a += block[i];
+                b += (ushort)(l * block[i]);
             }
 
-            return (uint) ToInt(a, b);
-
+            return ToInt(a, b, checkSumBytes);
         }
 
-        private static int ToInt(short x, short y)
-        {
-            return (x << 16) | (y & 0xffff);
-        }
+        private static readonly uint[] BitMasks2To4 = { 0xffff, 0xffffff, 0xffffffff };
 
-        private static short ToUnsigned(byte b)
+        public static uint ToInt(ushort x, ushort y, int bytes)
         {
-            return (short) (b < 0 ? b & 0xFF : b);
+            if (bytes < 2 || bytes > 4) throw new ArgumentException(null, nameof(bytes));
+            var result = (uint)(x << 16) | y;
+            return result & BitMasks2To4[bytes - 2];
         }
 
         public static string ByteToHex(byte[] bytes)

@@ -121,6 +121,8 @@ namespace zsyncnet.Internal
         {
             if (existingStream.Length == 0) return new Dictionary<int, long>();
 
+            var start = DateTime.Now;
+
             existingStream.Position = 0;
             var result = new Dictionary<int, long>();
 
@@ -138,20 +140,24 @@ namespace zsyncnet.Internal
                 existingStream.CopyTo(memStream);
             }
 
-            var rollingChecksum = RollingChecksum.GetRollingChecksum(existingData, header.BlockSize);
+            var rollingChecksum = RollingChecksum.GetRollingChecksum(existingData, header.BlockSize, header.WeakChecksumLength);
 
             var i = header.BlockSize;
             var md4Buffer = new byte[header.BlockSize];
 
             var earliest = i;
 
+            long md4calls = 0;
+
             foreach (var rSum in rollingChecksum)
             {
+                if (i % (10 * 1024 * 1024) == 0) Logger.Trace($"{i / (1024 * 1024)}mb done");
                 i++;
                 if (i - 1 < earliest) continue; // TODO: doc
 
-                if (!remoteBlockSums.TryGetValue((ushort)rSum, out var blocks)) continue;
+                if (!remoteBlockSums.TryGetValue(rSum, out var blocks)) continue;
 
+                md4calls++;
                 Array.Copy(existingData, i - 1 - header.BlockSize, md4Buffer, 0, header.BlockSize);
                 var hash = ZsyncUtil.Md4Hash(md4Buffer);
                 Array.Resize(ref hash, header.StrongChecksumLength);
@@ -170,10 +176,12 @@ namespace zsyncnet.Internal
                 }
             }
 
+            Logger.Trace($"Done in {(DateTime.Now - start).TotalSeconds:F2}s, using {md4calls} MD4 calls");
+
             return result;
         }
 
-        private class CheckSumTable : Dictionary<ushort, List<(byte[] hash, List<int> blockIndices)>>
+        private class CheckSumTable : Dictionary<uint, List<(byte[] hash, List<int> blockIndices)>>
         {
             public CheckSumTable(IEnumerable<BlockSum> blockSums)
             {

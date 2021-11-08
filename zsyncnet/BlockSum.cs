@@ -33,12 +33,12 @@ namespace zsyncnet
             return Rsum.GetHashCode();
         }
 
-        public readonly ushort Rsum;
+        public readonly uint Rsum;
         public readonly byte[] Checksum;
         public int BlockStart { get; set; }
 
 
-        public BlockSum(ushort rsum, byte[] checksum, int start)
+        public BlockSum(uint rsum, byte[] checksum, int start)
         {
             Rsum = rsum;
             Checksum = checksum;
@@ -58,50 +58,6 @@ namespace zsyncnet
             return blocks;
         }
 
-        public static List<BlockSum> GenerateBlocksum(byte[] input, int weakLength, int strongLength, int blockSize)
-        {
-            using (var stream = new MemoryStream(input))
-            {
-                int capacity = ((int) (input.Length / blockSize) + (input.Length % blockSize > 0 ? 1 : 0)) * (weakLength + strongLength)
-                               + 20;
-                List<BlockSum> blockSums = new List<BlockSum>();
-                var weakbytesMs = new MemoryStream(4);
-
-                int count = 0;
-                byte[] block = new byte[blockSize];
-                int read;
-                while ((read = stream.Read(block)) != 0)
-                {
-                    if (read < blockSize)
-                    {
-                        // Pad with 0's
-                        block = Pad(block, read, blockSize, 0);
-                    }
-
-                    //weakbytesMs.Clear();
-                    weakbytesMs.SetLength(0);
-                    weakbytesMs.SetLength(weakLength);
-
-                    var weakCheckSum = (ushort) ZsyncUtil.ComputeRsum(block);
-
-                    weakbytesMs.Position = weakbytesMs.Length - weakLength;
-
-
-                    var md4 = ZsyncUtil.Md4Hash(block.ToArray());
-                    var strongbytesMs = new MemoryStream(md4);
-                    strongbytesMs.SetLength(strongLength);
-
-                    byte[] strongBytesBuffer = new byte[strongLength];
-                    strongbytesMs.Read(strongBytesBuffer, 0, strongLength);
-
-                    blockSums.Add(new BlockSum(weakCheckSum,strongBytesBuffer,count));
-                    count++;
-                }
-
-                return blockSums;
-            }
-        }
-
         private static byte[] Pad(byte[] array, int start, int end, byte value)
         {
             for (int i = start; i < end; i++)
@@ -119,10 +75,10 @@ namespace zsyncnet
             return new BlockSum(rsum, checksum, start);
         }
 
-        private static ushort ReadRsum(MemoryStream input, int bytes)
+        private static uint ReadRsum(MemoryStream input, int bytes)
         {
             var br = new EndianBinaryReader(EndianBitConverter.Big, input);
-            var block = new byte[bytes];
+            var block = new byte[4];
             //var rsum = 0;
             for (var i = bytes - 1; i >= 0; i--)
             {
@@ -137,14 +93,7 @@ namespace zsyncnet
             }
 
 
-            return BitConverter.ToUInt16(block);
-            // Swap endian ?
-
-
-
-
-
-            //return (ushort) IPAddress.NetworkToHostOrder(rsum);
+            return BitConverter.ToUInt32(block);
         }
 
 
