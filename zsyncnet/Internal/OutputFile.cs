@@ -157,15 +157,21 @@ namespace zsyncnet.Internal
 
                 if (!remoteBlockSums.TryGetValue(rSum, out var blocks)) continue;
 
-                md4calls++;
-                Array.Copy(existingData, i - 1 - header.BlockSize, md4Buffer, 0, header.BlockSize);
-                var hash = ZsyncUtil.Md4Hash(md4Buffer);
-                Array.Resize(ref hash, header.StrongChecksumLength);
+                byte[] md4Hash = null;
 
                 foreach (var (md4, remoteBlockIndices) in blocks)
                 {
-                    // TODO: we could skip remote block indices that we already have a result for. could skip md4 hashing if there are none left to check.
-                    if (!md4.SequenceEqual(hash)) continue;
+                    if (result.ContainsKey(remoteBlockIndices[0])) continue; // we already have a source for that block.
+
+                    if (md4Hash == null)
+                    {
+                        md4calls++;
+                        Array.Copy(existingData, i - 1 - header.BlockSize, md4Buffer, 0, header.BlockSize);
+                        md4Hash = ZsyncUtil.Md4Hash(md4Buffer);
+                        Array.Resize(ref md4Hash, header.StrongChecksumLength);
+                    }
+
+                    if (!md4.SequenceEqual(md4Hash)) continue;
                     foreach (var remoteBlockIndex in remoteBlockIndices)
                     {
                         if (result.ContainsKey(remoteBlockIndex)) continue;
