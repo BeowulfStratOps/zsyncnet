@@ -7,23 +7,6 @@ namespace Tests
 {
     public class Md4Test
     {
-        [Test]
-        public void TestPerformance()
-        {
-            var rounds = 100000;
-            var data = new byte[2048];
-            new Random().NextBytes(data);
-
-            var start = DateTime.Now;
-            for (var i = 0; i < rounds; i++)
-            {
-                ZsyncUtil.Md4Hash(data);
-            }
-
-            var duration = DateTime.Now - start;
-            TestContext.Out.WriteLine(duration.TotalSeconds.ToString(CultureInfo.InvariantCulture) + "sec");
-            // 0.85sec on my pc, when ran alone.
-        }
 
         [Test]
         public void TestCorrectness1()
