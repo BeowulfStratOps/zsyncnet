@@ -117,41 +117,64 @@ namespace zsyncnet.Internal
         ///
         /// </summary>
         /// <returns>Dict remoteBlockIndex -> localOffset</returns>
-        private static Dictionary<int, long> FindExistingBlocks(Stream existingStream, Header header, CheckSumTable remoteBlockSums)
+        private static Dictionary<int, long> FindExistingBlocks(Stream stream, Header header,
+            CheckSumTable remoteBlockSums)
         {
-            if (existingStream.Length == 0) return new Dictionary<int, long>();
+            var result = new Dictionary<int, long>();
+            var md4Calls = 0;
 
             var start = DateTime.Now;
 
-            existingStream.Position = 0;
-            var result = new Dictionary<int, long>();
+            const long sectionSize = 10 * 1024 * 1024; // read ~10mb at a time
+            var totalLength = stream.Length;
 
-            var existingBlockCount = existingStream.Length / header.BlockSize;
-            if (existingStream.Length % header.BlockSize != 0) existingBlockCount++;
-            var existingData = new byte[existingBlockCount * header.BlockSize];
-            if (existingStream.Length % header.BlockSize != 0)
+            var buffer = new byte[sectionSize + header.BlockSize];
+
+            for (long offset = 0; offset < totalLength; offset+=sectionSize)
             {
-                // padding
-                Array.Fill<byte>(existingData, 0, (int)existingBlockCount - 2, header.BlockSize);
+                stream.Position = offset;
+                var length = sectionSize + header.BlockSize; // read a blocksize into the next section to have overlapping slices
+                if (offset + length <= totalLength)
+                {
+                    stream.Read(buffer);
+                }
+                else
+                {
+                    // round up to next block border and pad
+                    length = totalLength - offset;
+                    var blockCount = length / header.BlockSize;
+                    if (length % header.BlockSize > 0) blockCount++;
+                    length = blockCount * header.BlockSize;
+
+                    buffer = new byte[length];
+                    Array.Fill<byte>(buffer, 0); // pad with zeroes
+                    stream.Read(buffer, 0, (int)(totalLength - offset));
+                }
+
+                FindExistingBlocks(buffer, offset, header, remoteBlockSums, result, out var sectionMd4Calls);
+                md4Calls += sectionMd4Calls;
             }
 
-            using var memStream = new MemoryStream(existingData);
-            {
-                existingStream.CopyTo(memStream);
-            }
+            Logger.Info($"Done in {(DateTime.Now-start).TotalSeconds:F2}, using {md4Calls} md4 calls");
 
-            var rollingChecksum = RollingChecksum.GetRollingChecksum(existingData, header.BlockSize, header.WeakChecksumLength);
+            return result;
+        }
+
+
+        private static void FindExistingBlocks(byte[] buffer, long bufferOffset, Header header, CheckSumTable remoteBlockSums,
+            Dictionary<int, long> result, out int md4Calls)
+        {
+            var rollingChecksum = RollingChecksum.GetRollingChecksum(buffer, header.BlockSize, header.WeakChecksumLength);
 
             var i = header.BlockSize;
             var md4Buffer = new byte[header.BlockSize];
 
             var earliest = i;
 
-            long md4calls = 0;
+            md4Calls = 0;
 
             foreach (var rSum in rollingChecksum)
             {
-                if (i % (10 * 1024 * 1024) == 0) Logger.Trace($"{i / (1024 * 1024)}mb done");
                 i++;
                 if (i - 1 < earliest) continue; // TODO: doc
 
@@ -165,8 +188,8 @@ namespace zsyncnet.Internal
 
                     if (md4Hash == null)
                     {
-                        md4calls++;
-                        Array.Copy(existingData, i - 1 - header.BlockSize, md4Buffer, 0, header.BlockSize);
+                        md4Calls++;
+                        Array.Copy(buffer, i - 1 - header.BlockSize, md4Buffer, 0, header.BlockSize);
                         md4Hash = ZsyncUtil.Md4Hash(md4Buffer);
                         Array.Resize(ref md4Hash, header.StrongChecksumLength);
                     }
@@ -175,16 +198,12 @@ namespace zsyncnet.Internal
                     foreach (var remoteBlockIndex in remoteBlockIndices)
                     {
                         if (result.ContainsKey(remoteBlockIndex)) continue;
-                        result.Add(remoteBlockIndex, i - 1 - header.BlockSize);
+                        result.Add(remoteBlockIndex, i - 1 - header.BlockSize + bufferOffset);
                     }
                     earliest = i - 1 + header.BlockSize;
                     break;
                 }
             }
-
-            Logger.Trace($"Done in {(DateTime.Now - start).TotalSeconds:F2}s, using {md4calls} MD4 calls");
-
-            return result;
         }
 
         private class CheckSumTable : Dictionary<uint, List<(byte[] hash, List<int> blockIndices)>>
