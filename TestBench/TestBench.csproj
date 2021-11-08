@@ -10,4 +10,11 @@
       <ProjectReference Include="..\zsyncnet\zsyncnet.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <None Remove="nlog.config" />
+      <Content Include="nlog.config">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+    </ItemGroup>
+
 </Project>

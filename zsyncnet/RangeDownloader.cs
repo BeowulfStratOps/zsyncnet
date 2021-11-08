@@ -12,11 +12,11 @@ namespace zsyncnet
         private readonly HttpClient _client = new();
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         public long TotalBytesDownloaded { get; private set; }
+        public long RangesDownloaded { get; private set; }
 
         public RangeDownloader(Uri fileUri)
         {
             _fileUri = fileUri;
-            throw new NotImplementedException();
         }
 
         public Stream DownloadRange(long from, long to)
@@ -32,9 +32,10 @@ namespace zsyncnet
 
             var response = _client.SendAsync(req).Result;
             response.EnsureSuccessStatusCode();
-            Logger.Info($"Downloading {range}");
+            Logger.Trace($"Downloading {range}");
             var stream = response.Content.ReadAsStreamAsync().Result;
             TotalBytesDownloaded += stream.Length;
+            RangesDownloaded++;
             return stream;
         }
     }

@@ -6,6 +6,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Flurl.Http;
 using MiscUtil.Collections.Extensions;
+using NLog;
 using zsyncnet.Internal;
 using zsyncnet.Internal.ControlFile;
 
@@ -68,6 +69,9 @@ namespace zsyncnet
                 // TODO: File.SetLastWriteTimeUtc(TempPath.FullName, _mtime);
                 // TODO: replace file with tmpfile
 
+                var logger = LogManager.GetCurrentClassLogger();
+                logger.Debug($"Downloaded: {rangeDownloader.TotalBytesDownloaded}bytes in {rangeDownloader.RangesDownloaded} requests.");
+
                 return rangeDownloader.TotalBytesDownloaded;
             }
             else
@@ -80,8 +84,7 @@ namespace zsyncnet
 
         public static void Sync(ControlFile controlFile, Stream seed, IRangeDownloader remoteFile, Stream output)
         {
-            var of = new OutputFile(seed, controlFile, remoteFile, output);
-            of.Patch();
+            OutputFile.Patch(seed, controlFile, remoteFile, output);
         }
     }
 }

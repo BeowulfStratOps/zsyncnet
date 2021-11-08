@@ -6,9 +6,10 @@ using zsyncnet;
 
 namespace Tests
 {
+    [Parallelizable(ParallelScope.Children)]
     public class SyncTests : LoggedTest
     {
-        private static void DoTest(byte[] seed, byte[] data, int expectedBlockDownloads, int expectedRanges)
+        private static void DoTest(byte[] seed, byte[] data, int expectedBytesDownloads, int expectedRanges)
         {
             var cf = ZsyncMake.MakeControlFile(new MemoryStream(data), DateTime.Now, "test.bin");
             var downloader = new DummyRangeDownloader(data);
@@ -17,7 +18,7 @@ namespace Tests
             Zsync.Sync(cf, new MemoryStream(seed), downloader, output);
 
             Assert.AreEqual(data, output.ToArray());
-            Assert.AreEqual(expectedBlockDownloads * cf.GetHeader().BlockSize, downloader.TotalBytesDownloaded);
+            Assert.AreEqual(expectedBytesDownloads, downloader.TotalBytesDownloaded);
             Assert.AreEqual(expectedRanges, downloader.RangesDowloaded);
         }
 
@@ -47,7 +48,25 @@ namespace Tests
             data.CopyTo(seed, 0);
             seed[0] += 128;
 
-            DoTest(seed, data, 1, 1);
+            DoTest(seed, data, 2048, 1);
+        }
+
+        [Test]
+        public void DuplicateBlock()
+        {
+            var random = new Random(5);
+
+            var data = new byte[4096];
+            random.NextBytes(data);
+            for (var i = 0; i < 2048; i++)
+            {
+                data[i + 2048] = data[i];
+            }
+
+            var seed = new byte[data.Length];
+            data.CopyTo(seed, 0);
+
+            DoTest(seed, data, 0, 0);
         }
 
         [Test]
@@ -64,7 +83,7 @@ namespace Tests
                 seed[i] = (byte)(data[i] + 128);
             }
 
-            DoTest(seed, data, 2048, 1);
+            DoTest(seed, data, data.Length, 1);
         }
 
         [Test]
@@ -79,7 +98,67 @@ namespace Tests
             data.CopyTo(seed, 0);
             seed[2047] += 128;
 
-            DoTest(seed, data, 1, 1);
+            DoTest(seed, data, data.Length, 1);
+        }
+
+        [Test]
+        public void Padding()
+        {
+            var random = new Random();
+
+            var data = new byte[3456];
+            random.NextBytes(data);
+
+            var seed = new byte[data.Length];
+            random.NextBytes(seed);
+
+            DoTest(seed, data, data.Length, 1);
+        }
+
+        [Test]
+        public void MatchingPaddedBlock()
+        {
+            var random = new Random();
+
+            var data = new byte[3456];
+            random.NextBytes(data);
+
+            var seed = new byte[data.Length];
+            random.NextBytes(seed);
+            for (int i = 2048; i < data.Length; i++)
+            {
+                seed[i] = data[i];
+            }
+
+            DoTest(seed, data, 2048, 1);
+        }
+
+        [Test]
+        public void EmptyRemote()
+        {
+            var random = new Random();
+
+            var data = Array.Empty<byte>();
+            random.NextBytes(data);
+
+            var seed = new byte[12345];
+            random.NextBytes(seed);
+
+            DoTest(seed, data, 0, 0);
+        }
+
+        [Test]
+        public void EmptyLocal()
+        {
+            var random = new Random();
+
+            var data = new byte[12 * 2048 + 1234];
+            random.NextBytes(data);
+
+            var seed = Array.Empty<byte>();
+            random.NextBytes(seed);
+
+            DoTest(seed, data, data.Length, 1);
         }
 
         [Test]
@@ -111,7 +190,7 @@ namespace Tests
                 seed[i] = data[i + 1];
             }
 
-            DoTest(seed, data, 1, 1);
+            DoTest(seed, data, 2048, 1);
         }
     }
 }
