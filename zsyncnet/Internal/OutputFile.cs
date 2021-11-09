@@ -171,6 +171,7 @@ namespace zsyncnet.Internal
             var earliest = i;
 
             md4Calls = 0;
+            var md4Hasher = new Md4(header.BlockSize);
 
             foreach (var rSum in rollingChecksum)
             {
@@ -189,7 +190,7 @@ namespace zsyncnet.Internal
                     {
                         md4Calls++;
                         //md4Hash = ZsyncUtil.Md4Hash(md4Buffer, 0, md4Buffer.Length);
-                        md4Hash = ZsyncUtil.Md4Hash(buffer, i - 1 - header.BlockSize, header.BlockSize);
+                        md4Hash = md4Hasher.Hash(buffer, i - 1 - header.BlockSize);
                     }
 
                     if (!HashEqual(md4, md4Hash)) continue;

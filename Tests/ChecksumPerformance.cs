@@ -9,28 +9,14 @@ namespace Tests
 {
     public class ChecksumPerformance
     {
-        private string tempPath;
-
-        [SetUp]
-        public void Setup()
-        {
-            tempPath = Path.GetTempFileName();
-            var testData = new byte[100 * 1024 * 1024];
-            File.WriteAllBytes(tempPath, testData);
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            File.Delete(tempPath);
-        }
-
         [Test]
         public void RSum()
         {
+            var data = new byte[100 * 1024 * 1024];
+            new Random(123).NextBytes(data);
+
             var start = DateTime.Now;
 
-            var data = File.ReadAllBytes(tempPath);
             var rollingChecksum = RollingChecksum.GetRollingChecksum(data, 2048, 3);
             foreach (var _ in rollingChecksum)
             {
@@ -44,16 +30,15 @@ namespace Tests
         [Test]
         public void Md4()
         {
+            var data = new byte[100 * 1024 * 1024];
+            new Random(123).NextBytes(data);
+            var md4Hasher = new Md4(2048);
+
             var start = DateTime.Now;
-
-            var data = File.ReadAllBytes(tempPath);
-
-            var md4Buffer = new byte[2048];
 
             for (int i = 0; i < 100_000; i++)
             {
-                Array.Copy(data, i, md4Buffer, 0, 2048);
-                ZsyncUtil.Md4Hash(md4Buffer, 0, md4Buffer.Length);
+                md4Hasher.Hash(data, i);
             }
 
             var duration = (DateTime.Now - start);
