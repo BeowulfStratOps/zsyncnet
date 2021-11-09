@@ -36,12 +36,13 @@ namespace Tests
             var data = new byte[100 * 1024 * 1024];
             new Random(123).NextBytes(data);
             var md4Hasher = new Md4(2048);
+            var hash = new byte[16];
 
             var start = DateTime.Now;
 
             for (int i = 0; i < 100_000; i++)
             {
-                md4Hasher.Hash(data, i);
+                md4Hasher.Hash(data, i, hash);
             }
 
             var duration = (DateTime.Now - start);

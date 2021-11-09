@@ -26,8 +26,10 @@ namespace zsyncnet
         private static readonly uint[] Y2 = { 0, 1, 2, 3, 0, 4, 8, 12, 3, 5, 9, 13, 0x5a827999 };
         private static readonly uint[] Y3 = { 0, 2, 1, 3, 0, 8, 4, 12, 3, 9, 11, 15, 0x6ed9eba1 };
 
-        public byte[] Hash(byte[] input, long offset)
+        public void Hash(byte[] input, long offset, byte[] output)
         {
+            if (output.Length != 16) throw new ArgumentException("output buffer must be 16bytes long", nameof(output));
+
             for (int i = 0; i + 3 < _length; i += 4)
                 _uints[i / 4] = input[i + offset] | (uint)input[i + offset + 1] << 8 | (uint)input[i + offset + 2] << 16 | (uint)input[i + offset + 3] << 24;
             _uints[_length / 4] = 128;
@@ -64,9 +66,21 @@ namespace zsyncnet
                 d += dd;
             }
 
-            // return hex encoded string
-            byte[] outBytes = new[] {a, b, c, d}.SelectMany(BitConverter.GetBytes).ToArray();
-            return outBytes;
+            WriteUIntToByteArray(output, 0, a);
+            WriteUIntToByteArray(output, 4, b);
+            WriteUIntToByteArray(output, 8, c);
+            WriteUIntToByteArray(output, 12, d);
+        }
+
+        private static void WriteUIntToByteArray(byte[] array, int offset, uint number)
+        {
+            array[offset] = (byte)(number & 0xff);
+            number >>= 8;
+            array[offset + 1] = (byte)(number & 0xff);
+            number >>= 8;
+            array[offset + 2] = (byte)(number & 0xff);
+            number >>= 8;
+            array[offset + 3] = (byte)(number & 0xff);
         }
     }
 }

@@ -169,6 +169,7 @@ namespace zsyncnet.Internal
             var earliest = header.BlockSize;
 
             md4Calls = 0;
+            var md4Hash = new byte[16];
             var md4Hasher = new Md4(header.BlockSize);
 
             for (int i = header.BlockSize; i <= buffer.Length; i++)
@@ -180,17 +181,18 @@ namespace zsyncnet.Internal
 
                 if (!remoteBlockSums.TryGetValue(rSum, out var blocks)) continue;
 
-                byte[] md4Hash = null;
+                var hashed = false;
 
                 foreach (var (md4, remoteBlockIndices) in blocks)
                 {
                     if (result.ContainsKey(remoteBlockIndices[0])) continue; // we already have a source for that block.
 
-                    if (md4Hash == null)
+                    if (!hashed)
                     {
                         md4Calls++;
                         //md4Hash = ZsyncUtil.Md4Hash(md4Buffer, 0, md4Buffer.Length);
-                        md4Hash = md4Hasher.Hash(buffer, i - header.BlockSize);
+                        md4Hasher.Hash(buffer, i - header.BlockSize, md4Hash);
+                        hashed = true;
                     }
 
                     if (!HashEqual(md4, md4Hash)) continue;
