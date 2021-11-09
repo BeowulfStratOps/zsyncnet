@@ -53,7 +53,7 @@ namespace Tests
             for (int i = 0; i < 100_000; i++)
             {
                 Array.Copy(data, i, md4Buffer, 0, 2048);
-                ZsyncUtil.Md4Hash(md4Buffer);
+                ZsyncUtil.Md4Hash(md4Buffer, 0, md4Buffer.Length);
             }
 
             var duration = (DateTime.Now - start);

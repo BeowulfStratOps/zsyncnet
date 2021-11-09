@@ -45,16 +45,16 @@ namespace zsyncnet
         private static readonly uint[] Y2 = { 0, 1, 2, 3, 0, 4, 8, 12, 3, 5, 9, 13, 0x5a827999 };
         private static readonly uint[] Y3 = { 0, 2, 1, 3, 0, 8, 4, 12, 3, 9, 11, 15, 0x6ed9eba1 };
 
-        public static byte[] Md4Hash(byte[] input)
+        public static byte[] Md4Hash(byte[] input, long offset, int length)
         {
-            var size = input.Length + 1;
+            var size = length + 1;
             while (size % 64 != 56) size++; // TODO: go back to school
             var bytes = new byte[size];
             Array.Fill<byte>(bytes, 0);
-            input.CopyTo(bytes, 0);
-            bytes[input.Length] = 128;
+            Array.Copy(input, offset, bytes, 0, length);
+            bytes[length] = 128;
 
-            uint bitCount = (uint) (input.Length) * 8;
+            var bitCount = (uint) length * 8;
             var uints = new uint[bytes.Length / 4 + 2];
             for (int i = 0; i + 3 < bytes.Length; i += 4)
                 uints[i / 4] = bytes[i] | (uint)bytes[i + 1] << 8 | (uint)bytes[i + 2] << 16 | (uint)bytes[i + 3] << 24;

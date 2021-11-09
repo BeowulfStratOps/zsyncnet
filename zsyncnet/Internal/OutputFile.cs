@@ -167,7 +167,6 @@ namespace zsyncnet.Internal
             var rollingChecksum = RollingChecksum.GetRollingChecksum(buffer, header.BlockSize, header.WeakChecksumLength);
 
             var i = header.BlockSize;
-            var md4Buffer = new byte[header.BlockSize];
 
             var earliest = i;
 
@@ -189,12 +188,11 @@ namespace zsyncnet.Internal
                     if (md4Hash == null)
                     {
                         md4Calls++;
-                        Array.Copy(buffer, i - 1 - header.BlockSize, md4Buffer, 0, header.BlockSize);
-                        md4Hash = ZsyncUtil.Md4Hash(md4Buffer);
-                        Array.Resize(ref md4Hash, header.StrongChecksumLength);
+                        //md4Hash = ZsyncUtil.Md4Hash(md4Buffer, 0, md4Buffer.Length);
+                        md4Hash = ZsyncUtil.Md4Hash(buffer, i - 1 - header.BlockSize, header.BlockSize);
                     }
 
-                    if (!md4.SequenceEqual(md4Hash)) continue;
+                    if (!HashEqual(md4, md4Hash)) continue;
                     foreach (var remoteBlockIndex in remoteBlockIndices)
                     {
                         if (result.ContainsKey(remoteBlockIndex)) continue;
@@ -204,6 +202,17 @@ namespace zsyncnet.Internal
                     break;
                 }
             }
+        }
+
+        private static bool HashEqual(byte[] a, byte[] b)
+        {
+            var length = a.Length;
+            if (b.Length < length) length = b.Length;
+            for (int i = 0; i < length; i++)
+            {
+                if (a[i] != b[i]) return false;
+            }
+            return true;
         }
 
         private class CheckSumTable : Dictionary<uint, List<(byte[] hash, List<int> blockIndices)>>
