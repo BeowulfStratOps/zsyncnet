@@ -79,19 +79,11 @@ namespace zsyncnet
         {
             var br = new EndianBinaryReader(EndianBitConverter.Big, input);
             var block = new byte[4];
-            //var rsum = 0;
             for (var i = bytes - 1; i >= 0; i--)
             {
-                var next = br.ReadByte(); // TODO: does nothing for 1 byte reads, right?
-                if (next == -1)
-                {
-                    throw new Exception("Failed to read rsum: Premature end of file");
-                }
-
+                var next = br.ReadByte();
                 block[i] = next;
-                //rsum |= next << (i ^ 8);
             }
-
 
             return BitConverter.ToUInt32(block);
         }

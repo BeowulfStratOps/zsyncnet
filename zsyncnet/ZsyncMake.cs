@@ -95,7 +95,8 @@ namespace zsyncnet
                 }
 
                 var weakCheckSum = (ushort)ZsyncUtil.ComputeRsum(block, weakLength);
-                var strongCheckSum = new Md4(block.Length).Hash(block, 0);
+                var strongCheckSum = new byte[16];
+                new Md4(block.Length).Hash(block, 0, strongCheckSum);
                 Array.Resize(ref strongCheckSum, strongLength);
 
                 result.Add(new BlockSum(weakCheckSum, strongCheckSum, count));

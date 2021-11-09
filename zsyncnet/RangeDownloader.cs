@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using NLog;
@@ -30,13 +31,13 @@ namespace zsyncnet
                 Headers = {Range = range}
             };
 
-            var response = _client.SendAsync(req).Result;
-            response.EnsureSuccessStatusCode();
             Logger.Trace($"Downloading {range}");
-            var stream = response.Content.ReadAsStreamAsync().Result;
-            TotalBytesDownloaded += stream.Length;
+            TotalBytesDownloaded += to - from;
             RangesDownloaded++;
-            return stream;
+
+            var response = _client.Send(req, HttpCompletionOption.ResponseHeadersRead);
+            if (response.StatusCode != HttpStatusCode.PartialContent) throw new HttpRequestException();
+            return response.Content.ReadAsStream();
         }
     }
 }

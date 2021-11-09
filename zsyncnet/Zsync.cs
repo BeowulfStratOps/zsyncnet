@@ -5,7 +5,6 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using Flurl.Http;
-using MiscUtil.Collections.Extensions;
 using NLog;
 using zsyncnet.Internal;
 using zsyncnet.Internal.ControlFile;
