@@ -6,7 +6,7 @@ namespace zsyncnet
 {
     public static class ZsyncUtil
     {
-        public static uint ComputeRsum(byte[] block, int checkSumBytes)
+        public static uint ComputeRsum(Span<byte> block, int checkSumBytes)
         {
             ushort a = 0;
             ushort b = 0;

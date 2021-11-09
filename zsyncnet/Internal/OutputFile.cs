@@ -123,6 +123,11 @@ namespace zsyncnet.Internal
             var result = new Dictionary<int, long>();
             var md4Calls = 0;
 
+            if (stream.Length < header.BlockSize * 2) return result;
+
+            if (header.SequenceMatches is < 1 or > 2)
+                throw new NotSupportedException();
+
             var start = DateTime.Now;
 
             const long sectionSize = 10 * 1024 * 1024; // read ~10mb at a time
@@ -130,10 +135,12 @@ namespace zsyncnet.Internal
 
             var buffer = new byte[sectionSize + header.BlockSize];
 
-            for (long offset = 0; offset < totalLength; offset+=sectionSize)
+            for (long offset = 0; offset < totalLength; offset += sectionSize)
             {
                 stream.Position = offset;
-                var length = sectionSize + header.BlockSize; // read a blocksize into the next section to have overlapping slices
+
+                // read two blocksizes into the next section to have overlapping slices
+                var length = sectionSize + 2 * header.BlockSize;
                 if (offset + length <= totalLength)
                 {
                     stream.Read(buffer);
@@ -170,9 +177,15 @@ namespace zsyncnet.Internal
 
             md4Calls = 0;
             var md4Hash = new byte[16];
+            var previousMd4Hash = new byte[16];
             var md4Hasher = new Md4(header.BlockSize);
 
-            for (int i = header.BlockSize; i <= buffer.Length; i++)
+            for (int i = 0; i < header.BlockSize; i++)
+            {
+                rollingChecksum.Next();
+            }
+
+            for (int i = 2 * header.BlockSize; i <= buffer.Length; i++)
             {
                 var rSum = rollingChecksum.Current;
                 if (i < buffer.Length) rollingChecksum.Next();
@@ -182,10 +195,21 @@ namespace zsyncnet.Internal
                 if (!remoteBlockSums.TryGetValue(rSum, out var blocks)) continue;
 
                 var hashed = false;
+                var hashedPrevious = false;
+                uint? previousRSum = null;
 
-                foreach (var (md4, remoteBlockIndices) in blocks)
+                foreach (var (expectedPreviousRSum, md4, previousMd4, remoteBlockIndex) in blocks)
                 {
-                    if (result.ContainsKey(remoteBlockIndices[0])) continue; // we already have a source for that block.
+                    if (result.ContainsKey(remoteBlockIndex)) continue; // we already have a source for that block.
+
+                    if (header.SequenceMatches == 2)
+                    {
+                        previousRSum ??= ZsyncUtil.ComputeRsum(
+                            buffer.AsSpan(i - 2 * header.BlockSize, header.BlockSize),
+                            header.WeakChecksumLength);
+
+                        if (previousRSum != expectedPreviousRSum) continue;
+                    }
 
                     if (!hashed)
                     {
@@ -196,13 +220,26 @@ namespace zsyncnet.Internal
                     }
 
                     if (!HashEqual(md4, md4Hash)) continue;
-                    foreach (var remoteBlockIndex in remoteBlockIndices)
+
+                    result.Add(remoteBlockIndex, i - header.BlockSize + bufferOffset);
+
+                    // previous one might have been the start of a sequence and not been added yet
+                    if (remoteBlockIndex > 0 && !result.ContainsKey(remoteBlockIndex - 1))
                     {
-                        if (result.ContainsKey(remoteBlockIndex)) continue;
-                        result.Add(remoteBlockIndex, i - header.BlockSize + bufferOffset);
+                        if (!hashedPrevious)
+                        {
+                            md4Calls++;
+                            md4Hasher.Hash(buffer, i - 2 * header.BlockSize, previousMd4Hash);
+                            hashedPrevious = true;
+                        }
+
+                        if (HashEqual(previousMd4, previousMd4Hash))
+                        {
+                            result.Add(remoteBlockIndex - 1, i - 2 * header.BlockSize + bufferOffset);
+                        }
                     }
+
                     earliest = i + header.BlockSize;
-                    break;
                 }
             }
         }
@@ -218,23 +255,26 @@ namespace zsyncnet.Internal
             return true;
         }
 
-        private class CheckSumTable : Dictionary<uint, List<(byte[] hash, List<int> blockIndices)>>
+        private record RemoteBlock(uint PreviousRSum, byte[] Hash, byte[] PreviousHash, int BlockIndex);
+
+        private class CheckSumTable : Dictionary<uint, List<RemoteBlock>>
         {
             public CheckSumTable(IEnumerable<BlockSum> blockSums)
             {
+                uint lastRSum = 0;
+                byte[] previousHash = null;
                 foreach (var blockSum in blockSums)
                 {
                     if (!TryGetValue(blockSum.Rsum, out var bin))
                     {
-                        bin = new List<(byte[] hash, List<int> blockIndices)>();
+                        bin = new List<RemoteBlock>();
                         Add(blockSum.Rsum, bin);
                     }
 
-                    var (_, blockIndices) = bin.SingleOrDefault(entry => entry.hash.SequenceEqual(blockSum.Checksum));
-                    if (blockIndices != null)
-                        blockIndices.Add(blockSum.BlockStart);
-                    else
-                        bin.Add((blockSum.Checksum, new List<int> { blockSum.BlockStart }));
+                    bin.Add(new RemoteBlock(lastRSum, blockSum.Checksum, previousHash, blockSum.BlockStart));
+
+                    lastRSum = blockSum.Rsum;
+                    previousHash = blockSum.Checksum;
                 }
             }
         }

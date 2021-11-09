@@ -120,7 +120,7 @@ namespace Tests
         {
             var random = new Random();
 
-            var data = new byte[3456];
+            var data = new byte[2048+3456];
             random.NextBytes(data);
 
             var seed = new byte[data.Length];
