@@ -17,9 +17,12 @@ namespace Tests
 
             var start = DateTime.Now;
 
-            var rollingChecksum = RollingChecksum.GetRollingChecksum(data, 2048, 3);
-            foreach (var _ in rollingChecksum)
+            var rollingChecksum = new RollingChecksum(data, 2048, 3);
+            var _ = rollingChecksum.Current;
+            for (var i = 0; i < data.Length - 2048; i++)
             {
+                rollingChecksum.Next();
+                var __ = rollingChecksum.Current;
             }
 
             var duration = (DateTime.Now - start);

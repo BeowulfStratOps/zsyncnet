@@ -8,27 +8,38 @@ using System.Runtime.CompilerServices;
 
 namespace zsyncnet.Internal
 {
-    internal static class RollingChecksum
+    internal class RollingChecksum
     {
-        public static IEnumerable<uint> GetRollingChecksum(byte[] array, int blockSize, int checksumBytes)
+        private readonly byte[] _array;
+        private readonly int _blockSize;
+        private ushort _a, _b;
+        private long _index;
+        private readonly uint _mask;
+
+        private static readonly uint[] BitMasks2To4 = { 0xffff, 0xffffff, 0xffffffff };
+
+        public RollingChecksum(byte[] array, int blockSize, int checksumBytes)
         {
             if (checksumBytes < 2 || checksumBytes > 4) throw new ArgumentException(null, nameof(checksumBytes));
+            _mask = BitMasks2To4[checksumBytes - 2];
 
-            ushort a = 0, b = 0;
-            for (int i = 0; i < blockSize; i++)
+            _array = array;
+            _blockSize = blockSize;
+
+            for (_index = 0; _index < blockSize; _index++)
             {
-                a += array[i];
-                b += (ushort)((blockSize - i) * array[i]);
+                _a += array[_index];
+                _b += (ushort)((blockSize - _index) * array[_index]);
             }
+        }
 
-            yield return ZsyncUtil.ToInt(a, b, checksumBytes);
+        public uint Current => _mask & (uint)(_a << 16) | _b;
 
-            for (int i = 0; i < array.Length - blockSize; i++)
-            {
-                a = (ushort)(a - array[i] + array[i + blockSize]);
-                b = (ushort)(b - blockSize * array[i] + a);
-                yield return ZsyncUtil.ToInt(a, b, checksumBytes);
-            }
+        public void Next()
+        {
+            _a = (ushort)(_a - _array[_index - _blockSize] + _array[_index]);
+            _b = (ushort)(_b - _blockSize * _array[_index - _blockSize] + _a);
+            _index++;
         }
     }
 }

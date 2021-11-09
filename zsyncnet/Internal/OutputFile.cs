@@ -164,19 +164,19 @@ namespace zsyncnet.Internal
         private static void FindExistingBlocks(byte[] buffer, long bufferOffset, Header header, CheckSumTable remoteBlockSums,
             Dictionary<int, long> result, out int md4Calls)
         {
-            var rollingChecksum = RollingChecksum.GetRollingChecksum(buffer, header.BlockSize, header.WeakChecksumLength);
+            var rollingChecksum = new RollingChecksum(buffer, header.BlockSize, header.WeakChecksumLength);
 
-            var i = header.BlockSize;
-
-            var earliest = i;
+            var earliest = header.BlockSize;
 
             md4Calls = 0;
             var md4Hasher = new Md4(header.BlockSize);
 
-            foreach (var rSum in rollingChecksum)
+            for (int i = header.BlockSize; i <= buffer.Length; i++)
             {
-                i++;
-                if (i - 1 < earliest) continue; // TODO: doc
+                var rSum = rollingChecksum.Current;
+                if (i < buffer.Length) rollingChecksum.Next();
+
+                if (i < earliest) continue; // TODO: doc
 
                 if (!remoteBlockSums.TryGetValue(rSum, out var blocks)) continue;
 
@@ -190,16 +190,16 @@ namespace zsyncnet.Internal
                     {
                         md4Calls++;
                         //md4Hash = ZsyncUtil.Md4Hash(md4Buffer, 0, md4Buffer.Length);
-                        md4Hash = md4Hasher.Hash(buffer, i - 1 - header.BlockSize);
+                        md4Hash = md4Hasher.Hash(buffer, i - header.BlockSize);
                     }
 
                     if (!HashEqual(md4, md4Hash)) continue;
                     foreach (var remoteBlockIndex in remoteBlockIndices)
                     {
                         if (result.ContainsKey(remoteBlockIndex)) continue;
-                        result.Add(remoteBlockIndex, i - 1 - header.BlockSize + bufferOffset);
+                        result.Add(remoteBlockIndex, i - header.BlockSize + bufferOffset);
                     }
-                    earliest = i - 1 + header.BlockSize;
+                    earliest = i + header.BlockSize;
                     break;
                 }
             }

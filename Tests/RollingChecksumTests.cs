@@ -18,9 +18,14 @@ namespace Tests
             const int blockSize = 2048;
             var data = new byte[4096];
             new Random(123).NextBytes(data);
-            var rSum = RollingChecksum.GetRollingChecksum(data, blockSize, checksumLength);
+            var rSum = new RollingChecksum(data, blockSize, checksumLength);
 
-            var fromRolling = rSum.ToList();
+            var fromRolling = new List<uint> { rSum.Current };
+            for (int i = 0; i < 2048; i++)
+            {
+                rSum.Next();
+                fromRolling.Add(rSum.Current);
+            }
             var expected = new List<uint>();
 
             for (int i = 0; i < data.Length - blockSize + 1; i++)
