@@ -10,7 +10,7 @@ namespace Tests
     public class ChecksumPerformance
     {
         [Test]
-        public void RSum()
+        public void RSumRolling()
         {
             var data = new byte[100 * 1024 * 1024];
             new Random(123).NextBytes(data);
@@ -27,6 +27,25 @@ namespace Tests
 
             var duration = (DateTime.Now - start);
             Assert.LessOrEqual(DateTime.Now - start, TimeSpan.FromSeconds(1));
+            Console.WriteLine(duration.TotalSeconds.ToString(CultureInfo.InvariantCulture));
+        }
+
+        [Test]
+        public void RSum()
+        {
+            var data = new byte[100 * 1024 * 1024];
+            new Random(123).NextBytes(data);
+            var span = data.AsSpan(0, 2048);
+
+            var start = DateTime.Now;
+
+            for (int i = 0; i < 1_000_000; i++)
+            {
+                ZsyncUtil.ComputeRsum(span, 3);
+            }
+
+            var duration = (DateTime.Now - start);
+            Assert.LessOrEqual(DateTime.Now - start, TimeSpan.FromSeconds(2));
             Console.WriteLine(duration.TotalSeconds.ToString(CultureInfo.InvariantCulture));
         }
 

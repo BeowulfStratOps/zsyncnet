@@ -33,8 +33,6 @@ namespace zsyncnet.Internal
 
             var copyBuffer = new byte[header.BlockSize];
 
-            // TODO: adjust for padding!
-
             foreach (var syncOp in syncOps)
             {
                 if (syncOp.IsLocal)
@@ -121,7 +119,6 @@ namespace zsyncnet.Internal
             CheckSumTable remoteBlockSums)
         {
             var result = new Dictionary<int, long>();
-            var md4Calls = 0;
 
             if (stream.Length < header.BlockSize * 2) return result;
 
@@ -158,36 +155,39 @@ namespace zsyncnet.Internal
                     stream.Read(buffer, 0, (int)(totalLength - offset));
                 }
 
-                FindExistingBlocks(buffer, offset, header, remoteBlockSums, result, out var sectionMd4Calls);
-                md4Calls += sectionMd4Calls;
+                FindExistingBlocks(buffer, offset, header, remoteBlockSums, result);
             }
 
-            Logger.Info($"Done in {(DateTime.Now-start).TotalSeconds:F2}, using {md4Calls} md4 calls");
+            Logger.Info($"Done in {(DateTime.Now-start).TotalSeconds:F2}");
 
             return result;
         }
 
 
         private static void FindExistingBlocks(byte[] buffer, long bufferOffset, Header header, CheckSumTable remoteBlockSums,
-            Dictionary<int, long> result, out int md4Calls)
+            Dictionary<int, long> result)
         {
             var rollingChecksum = new RollingChecksum(buffer, header.BlockSize, header.WeakChecksumLength);
 
             var earliest = header.BlockSize;
 
-            md4Calls = 0;
             var md4Hash = new byte[16];
             var previousMd4Hash = new byte[16];
             var md4Hasher = new Md4(header.BlockSize);
 
+            var oldRsums = new uint[header.BlockSize];
+
             for (int i = 0; i < header.BlockSize; i++)
             {
+                oldRsums[i] = rollingChecksum.Current;
                 rollingChecksum.Next();
             }
 
             for (int i = 2 * header.BlockSize; i <= buffer.Length; i++)
             {
+                var previousRSum = oldRsums[i % header.BlockSize];
                 var rSum = rollingChecksum.Current;
+                oldRsums[i % header.BlockSize] = rSum;
                 if (i < buffer.Length) rollingChecksum.Next();
 
                 if (i < earliest) continue; // TODO: doc
@@ -196,24 +196,15 @@ namespace zsyncnet.Internal
 
                 var hashed = false;
                 var hashedPrevious = false;
-                uint? previousRSum = null;
 
                 foreach (var (expectedPreviousRSum, md4, previousMd4, remoteBlockIndex) in blocks)
                 {
                     if (result.ContainsKey(remoteBlockIndex)) continue; // we already have a source for that block.
 
-                    if (header.SequenceMatches == 2)
-                    {
-                        previousRSum ??= ZsyncUtil.ComputeRsum(
-                            buffer.AsSpan(i - 2 * header.BlockSize, header.BlockSize),
-                            header.WeakChecksumLength);
-
-                        if (previousRSum != expectedPreviousRSum) continue;
-                    }
+                    if (header.SequenceMatches == 2 && previousRSum != expectedPreviousRSum) continue;
 
                     if (!hashed)
                     {
-                        md4Calls++;
                         //md4Hash = ZsyncUtil.Md4Hash(md4Buffer, 0, md4Buffer.Length);
                         md4Hasher.Hash(buffer, i - header.BlockSize, md4Hash);
                         hashed = true;
@@ -228,7 +219,6 @@ namespace zsyncnet.Internal
                     {
                         if (!hashedPrevious)
                         {
-                            md4Calls++;
                             md4Hasher.Hash(buffer, i - 2 * header.BlockSize, previousMd4Hash);
                             hashedPrevious = true;
                         }
