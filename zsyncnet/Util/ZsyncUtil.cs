@@ -1,8 +1,7 @@
 using System;
-using System.Linq;
 using System.Text;
 
-namespace zsyncnet
+namespace zsyncnet.Util
 {
     internal static class ZsyncUtil
     {

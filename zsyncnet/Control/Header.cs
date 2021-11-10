@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Text;
 
-namespace zsyncnet.Internal.ControlFile
+namespace zsyncnet.Control
 {
     internal class Header
     {

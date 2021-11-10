@@ -5,7 +5,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using NLog;
 
-namespace zsyncnet
+namespace zsyncnet.Sync
 {
     internal class RangeDownloader : IRangeDownloader
     {

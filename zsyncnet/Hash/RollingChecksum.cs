@@ -1,12 +1,6 @@
 ﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 
-// TODO: where should this be placed?
-[assembly: InternalsVisibleTo("Tests")]
-
-namespace zsyncnet.Internal
+namespace zsyncnet.Hash
 {
     internal class RollingChecksum
     {

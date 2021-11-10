@@ -1,17 +1,11 @@
 using System;
 using System.Collections.Generic;
-using System.Data.SqlTypes;
 using System.IO;
 using System.Linq;
-using System.Net;
-using System.Reflection.Metadata.Ecma335;
-using System.Runtime.ConstrainedExecution;
-using System.Runtime.InteropServices;
-using System.Text;
 using MiscUtil.Conversion;
 using MiscUtil.IO;
 
-namespace zsyncnet
+namespace zsyncnet.Control
 {
     internal class BlockSum
     {

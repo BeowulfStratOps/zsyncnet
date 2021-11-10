@@ -2,8 +2,9 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
-using zsyncnet.Internal.ControlFile;
 using NLog;
+using zsyncnet.Control;
+using zsyncnet.Util;
 
 namespace zsyncnet
 {

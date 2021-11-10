@@ -4,11 +4,13 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using NLog;
-using zsyncnet.Internal.ControlFile;
+using zsyncnet.Control;
+using zsyncnet.Hash;
+using zsyncnet.Util;
 
-namespace zsyncnet.Internal
+namespace zsyncnet.Sync
 {
-    internal class OutputFile
+    internal class ZsyncPatch
     {
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 

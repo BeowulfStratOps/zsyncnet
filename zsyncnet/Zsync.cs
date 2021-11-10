@@ -2,8 +2,11 @@ using System;
 using System.IO;
 using System.Net;
 using System.Net.Http;
+using System.Runtime.CompilerServices;
 using NLog;
-using zsyncnet.Internal;
+using zsyncnet.Sync;
+
+[assembly: InternalsVisibleTo("Tests")]
 
 namespace zsyncnet
 {
@@ -58,10 +61,12 @@ namespace zsyncnet
             // TODO: use temp path as additional seed file
             var tempPath = new FileInfo(path + ".part");
             Directory.CreateDirectory(tempPath.Directory.FullName);
-            using var tmpStream = new FileStream(tempPath.FullName, FileMode.Create, FileAccess.ReadWrite);
+            using (var tmpStream = new FileStream(tempPath.FullName, FileMode.Create, FileAccess.ReadWrite))
+            using (var stream = File.OpenRead(path))
+            {
+                Sync(cf, stream, rangeDownloader, tmpStream);
+            }
 
-            using var stream = File.OpenRead(path);
-            Sync(cf, stream, rangeDownloader, tmpStream);
 
             var logger = LogManager.GetCurrentClassLogger();
             logger.Debug($"Downloaded: {rangeDownloader.TotalBytesDownloaded}bytes in {rangeDownloader.RangesDownloaded} requests.");
@@ -72,7 +77,7 @@ namespace zsyncnet
 
         public static void Sync(ControlFile controlFile, Stream seed, IRangeDownloader downloader, Stream output, IProgress<long> progress = null)
         {
-            OutputFile.Patch(seed, controlFile, downloader, output);
+            ZsyncPatch.Patch(seed, controlFile, downloader, output);
         }
     }
 }

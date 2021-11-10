@@ -1,9 +1,8 @@
 ﻿using System;
 using System.Globalization;
-using System.IO;
 using NUnit.Framework;
-using zsyncnet;
-using zsyncnet.Internal;
+using zsyncnet.Hash;
+using zsyncnet.Util;
 
 namespace Tests
 {

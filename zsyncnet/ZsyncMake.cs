@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Security.Cryptography;
-using zsyncnet.Internal.ControlFile;
+using zsyncnet.Control;
+using zsyncnet.Hash;
+using zsyncnet.Util;
 
 namespace zsyncnet
 {

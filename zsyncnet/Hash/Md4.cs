@@ -1,7 +1,6 @@
 ﻿using System;
-using System.Linq;
 
-namespace zsyncnet
+namespace zsyncnet.Hash
 {
     internal class Md4
     {
