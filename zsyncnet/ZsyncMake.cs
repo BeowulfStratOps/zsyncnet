@@ -35,13 +35,12 @@ namespace zsyncnet
             return new ControlFile(header, checkSums);
         }
 
-        public static void Make(FileInfo file)
+        public static ControlFile MakeControlFile(FileInfo file)
         {
             var mtime = File.GetLastWriteTimeUtc(file.FullName);
             using var stream = file.OpenRead();
             var cf = MakeControlFile(stream, mtime, file.Name);
-            var zsyncFile = new FileInfo(file.FullName + ".zsync");
-            cf.WriteToFile(zsyncFile.FullName);
+            return cf;
         }
 
         /// <summary>
@@ -79,7 +78,7 @@ namespace zsyncnet
             return l > 4 ? 4 : l < 2 ? 2 : l;
         }
 
-        public static List<BlockSum> ComputeCheckSums(Stream input, int weakLength, int strongLength, int blockSize)
+        private static List<BlockSum> ComputeCheckSums(Stream input, int weakLength, int strongLength, int blockSize)
         {
             var result = new List<BlockSum>();
 

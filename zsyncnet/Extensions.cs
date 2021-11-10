@@ -4,7 +4,7 @@ using System.IO;
 
 namespace zsyncnet
 {
-    public static class ArrayExtensions
+    internal static class ArrayExtensions
     {
         public static int [] Locate (this byte [] self, byte [] candidate)
         {

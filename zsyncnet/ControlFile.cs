@@ -12,7 +12,7 @@ namespace zsyncnet
         private readonly Header _header;
         private readonly List<BlockSum> _blockSums;
 
-        public ControlFile(Header header, List<BlockSum> blockSums)
+        internal ControlFile(Header header, List<BlockSum> blockSums)
         {
             _header = header;
             _blockSums = blockSums;
@@ -33,12 +33,12 @@ namespace zsyncnet
             }
         }
 
-        public Header GetHeader()
+        internal Header GetHeader()
         {
             return _header;
         }
 
-        public IReadOnlyList<BlockSum> GetBlockSums()
+        internal IReadOnlyList<BlockSum> GetBlockSums()
         {
             return _blockSums;
         }

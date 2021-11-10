@@ -4,7 +4,7 @@ using System.Text;
 
 namespace zsyncnet.Internal.ControlFile
 {
-    public class Header
+    internal class Header
     {
         public string Version { get; }
         public string Filename { get; }

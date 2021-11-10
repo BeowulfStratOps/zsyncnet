@@ -1,13 +1,9 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Net;
-using System.Security.Cryptography;
-using System.Text;
-using Flurl.Http;
+using System.Net.Http;
 using NLog;
 using zsyncnet.Internal;
-using zsyncnet.Internal.ControlFile;
 
 namespace zsyncnet
 {
@@ -19,20 +15,31 @@ namespace zsyncnet
             return Uri.TryCreate(url, UriKind.Absolute, out _);
         }
 
+        private static ControlFile DownloadControlFile(Uri uri)
+        {
+            var client = new HttpClient();
+            var request = new HttpRequestMessage(HttpMethod.Get, uri);
+            var response = client.Send(request);
+            response.EnsureSuccessStatusCode();
+            using var stream = response.Content.ReadAsStream();
+            return new ControlFile(stream);
+        }
+
         /// <summary>
         /// Syncs a file
         /// </summary>
         /// <param name="zsyncFile"></param>
         /// <param name="output"></param>
-        /// <returns>Number of bytes downloaded</returns>
+        /// <param name="progress"></param>
         /// <exception cref="WebException"></exception>
         /// <exception cref="Exception"></exception>
-        public static long Sync(Uri zsyncFile, DirectoryInfo output)
+        public static void Sync(Uri zsyncFile, DirectoryInfo output, IProgress<long> progress = null)
         {
             // Load zsync control file
+            var cf = DownloadControlFile(zsyncFile);
 
-            var cf = new ControlFile(zsyncFile.ToString().GetStreamAsync().Result);
-            var path = Path.Combine(output.FullName, cf.GetHeader().Filename.TrimStart());
+            var path = Path.Combine(output.FullName, cf.GetHeader().Filename.Trim());
+            if (!File.Exists(path)) throw new FileNotFoundException();
 
             Uri fileUri;
 
@@ -46,44 +53,26 @@ namespace zsyncnet
                 fileUri = new Uri(cf.GetHeader().Url);
             }
 
-            if (fileUri.ToString().HeadAsync().Result.StatusCode == HttpStatusCode.NotFound)
-            {
-                // File not found
-                throw new WebException("File not found");
-            }
+            var rangeDownloader = new RangeDownloader(fileUri);
 
-            if (File.Exists(path))
-            {
-                // File exists, use the existing file as the seed file
+            // TODO: use temp path as additional seed file
+            var tempPath = new FileInfo(path + ".part");
+            Directory.CreateDirectory(tempPath.Directory.FullName);
+            using var tmpStream = new FileStream(tempPath.FullName, FileMode.Create, FileAccess.ReadWrite);
 
-                var rangeDownloader = new RangeDownloader(fileUri);
+            using var stream = File.OpenRead(path);
+            Sync(cf, stream, rangeDownloader, tmpStream);
 
-                var tempPath = new FileInfo(path + ".part");
-                Directory.CreateDirectory(tempPath.Directory.FullName);
-                using var tmpStream = new FileStream(tempPath.FullName, FileMode.Create, FileAccess.ReadWrite);
+            var logger = LogManager.GetCurrentClassLogger();
+            logger.Debug($"Downloaded: {rangeDownloader.TotalBytesDownloaded}bytes in {rangeDownloader.RangesDownloaded} requests.");
 
-                using var stream = File.OpenRead(path);
-                Sync(cf, stream, rangeDownloader, tmpStream);
-
-                // TODO: File.SetLastWriteTimeUtc(TempPath.FullName, _mtime);
-                // TODO: replace file with tmpfile
-
-                var logger = LogManager.GetCurrentClassLogger();
-                logger.Debug($"Downloaded: {rangeDownloader.TotalBytesDownloaded}bytes in {rangeDownloader.RangesDownloaded} requests.");
-
-                return rangeDownloader.TotalBytesDownloaded;
-            }
-            else
-            {
-                fileUri.ToString().DownloadFileAsync(output.FullName, cf.GetHeader().Filename).Wait();
-                return cf.GetHeader().Length;
-
-            }
+            File.Move(tempPath.FullName, path, true);
+            File.SetLastWriteTime(path, cf.GetHeader().MTime);
         }
 
-        public static void Sync(ControlFile controlFile, Stream seed, IRangeDownloader remoteFile, Stream output)
+        public static void Sync(ControlFile controlFile, Stream seed, IRangeDownloader downloader, Stream output, IProgress<long> progress = null)
         {
-            OutputFile.Patch(seed, controlFile, remoteFile, output);
+            OutputFile.Patch(seed, controlFile, downloader, output);
         }
     }
 }

@@ -4,7 +4,7 @@ using System.Text;
 
 namespace zsyncnet
 {
-    public static class ZsyncUtil
+    internal static class ZsyncUtil
     {
         public static uint ComputeRsum(Span<byte> block, int checkSumBytes)
         {

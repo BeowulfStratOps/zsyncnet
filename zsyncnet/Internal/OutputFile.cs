@@ -8,7 +8,7 @@ using zsyncnet.Internal.ControlFile;
 
 namespace zsyncnet.Internal
 {
-    public class OutputFile
+    internal class OutputFile
     {
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
@@ -205,7 +205,6 @@ namespace zsyncnet.Internal
 
                     if (!hashed)
                     {
-                        //md4Hash = ZsyncUtil.Md4Hash(md4Buffer, 0, md4Buffer.Length);
                         md4Hasher.Hash(buffer, i - header.BlockSize, md4Hash);
                         hashed = true;
                     }

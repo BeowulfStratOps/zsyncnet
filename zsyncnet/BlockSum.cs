@@ -13,7 +13,7 @@ using MiscUtil.IO;
 
 namespace zsyncnet
 {
-    public class BlockSum
+    internal class BlockSum
     {
         protected bool Equals(BlockSum other)
         {

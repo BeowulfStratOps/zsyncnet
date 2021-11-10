@@ -7,7 +7,7 @@ using NLog;
 
 namespace zsyncnet
 {
-    public class RangeDownloader : IRangeDownloader
+    internal class RangeDownloader : IRangeDownloader
     {
         private readonly Uri _fileUri;
         private readonly HttpClient _client = new();

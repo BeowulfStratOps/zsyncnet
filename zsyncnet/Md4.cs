@@ -3,7 +3,7 @@ using System.Linq;
 
 namespace zsyncnet
 {
-    public class Md4
+    internal class Md4
     {
         private readonly int _length;
 
