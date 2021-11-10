@@ -32,7 +32,7 @@ namespace Tests
             _tempPath.Delete(true);
         }
 
-        private byte[] GetPartiallyRandomData(int seedA, int seedB, int seedC)
+        private static byte[] GetPartiallyRandomData(int seedA, int seedB, int seedC)
         {
             var data = new byte[3 * RandomDataLength];
             var memStream = new MemoryStream(data);

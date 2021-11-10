@@ -44,6 +44,8 @@ namespace zsyncnet.Sync
 
             var copyBuffer = new byte[header.BlockSize];
 
+            long done = 0;
+
             foreach (var syncOp in syncOps)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -56,6 +58,7 @@ namespace zsyncnet.Sync
                         length = (int)(input.Length - syncOp.LocalOffset);
                     input.Read(copyBuffer, 0, length);
                     output.Write(copyBuffer, 0, length);
+                    done += length;
                 }
                 else
                 {
@@ -64,7 +67,9 @@ namespace zsyncnet.Sync
                     if (to > header.Length) to = header.Length;
                     var content = downloader.DownloadRange(from, to);
                     content.CopyTo(output);
+                    done += to - from;
                 }
+                progress?.Report(done);
             }
 
             output.Flush();
