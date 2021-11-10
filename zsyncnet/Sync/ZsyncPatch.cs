@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Threading;
 using NLog;
 using zsyncnet.Control;
 using zsyncnet.Hash;
@@ -14,8 +15,11 @@ namespace zsyncnet.Sync
     {
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
-        public static void Patch(Stream input, zsyncnet.ControlFile cf, IRangeDownloader downloader, Stream output)
+        public static void Patch(List<Stream> seeds, ControlFile cf, IRangeDownloader downloader, Stream output, IProgress<long> progress = null, CancellationToken cancellationToken = default)
         {
+            if (seeds.Contains(output))
+                throw new ArgumentException("Output stream can not be a seed stream");
+
             var header = cf.GetHeader();
 
             output ??= new MemoryStream((int)header.Length);
@@ -27,7 +31,12 @@ namespace zsyncnet.Sync
             var checksumTable = new CheckSumTable(remoteBlockSums);
 
             Logger.Info($"Comparing files...");
-            var existingBlocks = FindExistingBlocks(input, header, checksumTable);
+            var existingBlocks = new Dictionary<int, (Stream source, long offset)>();
+            foreach (var seed in seeds)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                FindExistingBlocks(seed, existingBlocks, header, checksumTable, cancellationToken);
+            }
             Logger.Info($"Total existing blocks {existingBlocks.Count}");
 
             var singleBlockSyncOps = BuildSyncOps(header.Length, header.BlockSize, existingBlocks);
@@ -37,8 +46,10 @@ namespace zsyncnet.Sync
 
             foreach (var syncOp in syncOps)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 if (syncOp.IsLocal)
                 {
+                    var input = syncOp.Source;
                     input.Position = syncOp.LocalOffset;
                     var length = header.BlockSize;
                     if (syncOp.LocalOffset + length > input.Length)
@@ -60,6 +71,7 @@ namespace zsyncnet.Sync
 
             Logger.Info("Verifying file");
 
+            cancellationToken.ThrowIfCancellationRequested();
             if (!VerifyFile(output, header.Sha1))
                 throw new Exception("Verification failed");
         }
@@ -73,7 +85,7 @@ namespace zsyncnet.Sync
         }
 
         private static List<SyncOperation> BuildSyncOps(long fileSize, int blockSize,
-            Dictionary<int, long> existingBlocks)
+            Dictionary<int, (Stream source, long offset)> existingBlocks)
         {
             var result = new List<SyncOperation>();
 
@@ -82,8 +94,8 @@ namespace zsyncnet.Sync
 
             for (int i = 0; i < totalBlockCount; i++)
             {
-                result.Add(existingBlocks.TryGetValue(i, out var localOffset)
-                    ? new SyncOperation(i, 1, true, localOffset)
+                result.Add(existingBlocks.TryGetValue(i, out var localInfo)
+                    ? new SyncOperation(i, 1, true, localInfo.offset, localInfo.source)
                     : new SyncOperation(i, 1, false));
             }
 
@@ -117,12 +129,10 @@ namespace zsyncnet.Sync
         ///
         /// </summary>
         /// <returns>Dict remoteBlockIndex -> localOffset</returns>
-        private static Dictionary<int, long> FindExistingBlocks(Stream stream, Header header,
-            CheckSumTable remoteBlockSums)
+        private static void FindExistingBlocks(Stream stream, Dictionary<int, (Stream source, long offset)> result,
+            Header header, CheckSumTable remoteBlockSums, CancellationToken cancellationToken)
         {
-            var result = new Dictionary<int, long>();
-
-            if (stream.Length < header.BlockSize * 2) return result;
+            if (stream.Length < header.BlockSize * 2) return;
 
             if (header.SequenceMatches is < 1 or > 2)
                 throw new NotSupportedException();
@@ -136,6 +146,8 @@ namespace zsyncnet.Sync
 
             for (long offset = 0; offset < totalLength; offset += sectionSize)
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 stream.Position = offset;
 
                 // read two blocksizes into the next section to have overlapping slices
@@ -157,17 +169,15 @@ namespace zsyncnet.Sync
                     stream.Read(buffer, 0, (int)(totalLength - offset));
                 }
 
-                FindExistingBlocks(buffer, offset, header, remoteBlockSums, result);
+                FindExistingBlocks(buffer, offset, header, remoteBlockSums, result, stream);
             }
 
             Logger.Info($"Done in {(DateTime.Now-start).TotalSeconds:F2}");
-
-            return result;
         }
 
 
         private static void FindExistingBlocks(byte[] buffer, long bufferOffset, Header header, CheckSumTable remoteBlockSums,
-            Dictionary<int, long> result)
+            Dictionary<int, (Stream source, long offset)> result, Stream source)
         {
             var rollingChecksum = new RollingChecksum(buffer, header.BlockSize, header.WeakChecksumLength);
 
@@ -213,7 +223,7 @@ namespace zsyncnet.Sync
 
                     if (!HashEqual(md4, md4Hash)) continue;
 
-                    result.Add(remoteBlockIndex, i - header.BlockSize + bufferOffset);
+                    result.Add(remoteBlockIndex, (source, i - header.BlockSize + bufferOffset));
 
                     // previous one might have been the start of a sequence and not been added yet
                     if (remoteBlockIndex > 0 && !result.ContainsKey(remoteBlockIndex - 1))
@@ -226,7 +236,7 @@ namespace zsyncnet.Sync
 
                         if (HashEqual(previousMd4, previousMd4Hash))
                         {
-                            result.Add(remoteBlockIndex - 1, i - 2 * header.BlockSize + bufferOffset);
+                            result.Add(remoteBlockIndex - 1, (source, i - 2 * header.BlockSize + bufferOffset));
                         }
                     }
 

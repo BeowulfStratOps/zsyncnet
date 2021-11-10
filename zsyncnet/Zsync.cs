@@ -1,9 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Runtime.CompilerServices;
-using NLog;
+using System.Threading;
 using zsyncnet.Sync;
 
 [assembly: InternalsVisibleTo("Tests")]
@@ -34,15 +35,13 @@ namespace zsyncnet
         /// <param name="zsyncFile"></param>
         /// <param name="output"></param>
         /// <param name="progress"></param>
+        /// <param name="cancellationToken"></param>
         /// <exception cref="WebException"></exception>
         /// <exception cref="Exception"></exception>
-        public static void Sync(Uri zsyncFile, DirectoryInfo output, IProgress<long> progress = null)
+        public static void Sync(Uri zsyncFile, DirectoryInfo output, IProgress<long> progress = null, CancellationToken cancellationToken = default)
         {
             // Load zsync control file
             var cf = DownloadControlFile(zsyncFile);
-
-            var path = Path.Combine(output.FullName, cf.GetHeader().Filename.Trim());
-            if (!File.Exists(path)) throw new FileNotFoundException();
 
             Uri fileUri;
 
@@ -56,28 +55,68 @@ namespace zsyncnet
                 fileUri = new Uri(cf.GetHeader().Url);
             }
 
-            var rangeDownloader = new RangeDownloader(fileUri);
+            var downloader = new RangeDownloader(fileUri);
 
-            // TODO: use temp path as additional seed file
-            var tempPath = new FileInfo(path + ".part");
-            Directory.CreateDirectory(tempPath.Directory.FullName);
-            using (var tmpStream = new FileStream(tempPath.FullName, FileMode.Create, FileAccess.ReadWrite))
-            using (var stream = File.OpenRead(path))
-            {
-                Sync(cf, stream, rangeDownloader, tmpStream);
-            }
-
-
-            var logger = LogManager.GetCurrentClassLogger();
-            logger.Debug($"Downloaded: {rangeDownloader.TotalBytesDownloaded}bytes in {rangeDownloader.RangesDownloaded} requests.");
-
-            File.Move(tempPath.FullName, path, true);
-            File.SetLastWriteTime(path, cf.GetHeader().MTime);
+            Sync(cf, downloader, output, progress, cancellationToken);
         }
 
-        public static void Sync(ControlFile controlFile, Stream seed, IRangeDownloader downloader, Stream output, IProgress<long> progress = null)
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="controlFile"></param>
+        /// <param name="downloader"></param>
+        /// <param name="output"></param>
+        /// <param name="progress"></param>
+        /// <param name="cancellationToken"></param>
+        /// <exception cref="FileNotFoundException"></exception>
+        public static void Sync(ControlFile controlFile, IRangeDownloader downloader, DirectoryInfo output, IProgress<long> progress = null, CancellationToken cancellationToken = default)
         {
-            ZsyncPatch.Patch(seed, controlFile, downloader, output);
+            var path = Path.Combine(output.FullName, controlFile.GetHeader().Filename.Trim());
+            if (!File.Exists(path)) throw new FileNotFoundException();
+
+            var partFile = new FileInfo(path + ".part");
+            var oldPartFile = new FileInfo(path + ".part.old");
+
+            if (partFile.Exists)
+                File.Move(partFile.FullName, oldPartFile.FullName);
+
+            var tmpStream = new FileStream(partFile.FullName, FileMode.Create, FileAccess.ReadWrite);
+
+            var seeds = new List<Stream> { File.OpenRead(path) };
+            if (oldPartFile.Exists)
+                seeds.Add(oldPartFile.OpenRead());
+
+            try
+            {
+                Sync(controlFile, seeds, downloader, tmpStream, progress, cancellationToken);
+            }
+            finally
+            {
+                tmpStream.Close();
+                foreach (var seed in seeds)
+                {
+                    seed.Close();
+                }
+                if (oldPartFile.Exists)
+                    oldPartFile.Delete();
+            }
+
+            File.Move(partFile.FullName, path, true);
+            File.SetLastWriteTime(path, controlFile.GetHeader().MTime);
+        }
+
+        /// <summary>
+        /// output stream can not be a seed as well.
+        /// </summary>
+        /// <param name="controlFile"></param>
+        /// <param name="seeds"></param>
+        /// <param name="downloader"></param>
+        /// <param name="output"></param>
+        /// <param name="cancellationToken"></param>
+        /// <param name="progress"></param>
+        public static void Sync(ControlFile controlFile, List<Stream> seeds, IRangeDownloader downloader, Stream output, IProgress<long> progress = null, CancellationToken cancellationToken = default)
+        {
+            ZsyncPatch.Patch(seeds, controlFile, downloader, output, progress, cancellationToken);
         }
     }
 }

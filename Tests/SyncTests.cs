@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using NUnit.Framework;
 using Tests.Util;
@@ -15,11 +16,12 @@ namespace Tests
             var downloader = new DummyRangeDownloader(data);
 
             var output = new MemoryStream(data.Length);
-            Zsync.Sync(cf, new MemoryStream(seed), downloader, output);
+            var seeds = new List<Stream> { new MemoryStream(seed) };
+            Zsync.Sync(cf, seeds, downloader, output);
 
             Assert.AreEqual(data, output.ToArray());
             Assert.AreEqual(expectedBytesDownloads, downloader.TotalBytesDownloaded);
-            Assert.AreEqual(expectedRanges, downloader.RangesDowloaded);
+            Assert.AreEqual(expectedRanges, downloader.RangesDownloaded);
         }
 
         [Test]

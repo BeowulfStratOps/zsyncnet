@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using zsyncnet;
 
 namespace Tests
@@ -7,7 +8,8 @@ namespace Tests
     {
         private readonly byte[] _data;
         public long TotalBytesDownloaded { get; private set; }
-        public long RangesDowloaded { get; private set; }
+        public long RangesDownloaded { get; private set; }
+        public event Action OnDownload;
 
         public DummyRangeDownloader(byte[] data)
         {
@@ -18,7 +20,10 @@ namespace Tests
         {
             var stream = new MemoryStream(_data, (int)from, (int)(to - from));
             TotalBytesDownloaded += to - from;
-            RangesDowloaded++;
+            RangesDownloaded++;
+
+            OnDownload?.Invoke();
+
             return stream;
         }
     }
