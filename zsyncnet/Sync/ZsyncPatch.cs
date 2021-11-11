@@ -22,9 +22,6 @@ namespace zsyncnet.Sync
 
             var header = cf.GetHeader();
 
-            output ??= new MemoryStream((int)header.Length);
-            output.SetLength(header.Length);
-
             var remoteBlockSums = cf.GetBlockSums();
 
             Logger.Trace($"Building checksum table");

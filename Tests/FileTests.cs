@@ -108,7 +108,7 @@ namespace Tests
             // check that the first bit of download was written to the part file
             var partPath = Path.Join(_tempPath.FullName, "target.bin.part");
             Assert.AreEqual(data.AsSpan(0, RandomDataLength).ToArray(),
-                File.ReadAllBytes(partPath).AsSpan(0, RandomDataLength).ToArray());
+                File.ReadAllBytes(partPath));
 
             // just making sure cancellation worked..
             Assert.AreNotEqual(data, File.ReadAllBytes(_targetFile.FullName));
