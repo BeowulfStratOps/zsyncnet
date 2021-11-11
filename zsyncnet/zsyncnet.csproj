@@ -11,10 +11,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="Flurl" Version="2.8.1" />
-      <PackageReference Include="Flurl.Http" Version="2.4.1" />
-      <PackageReference Include="JonSkeet.MiscUtil" Version="0.2.0" />
-      <PackageReference Include="NLog" Version="4.6.2" />
+      <PackageReference Include="NLog" Version="4.7.12" />
     </ItemGroup>
 
 </Project>

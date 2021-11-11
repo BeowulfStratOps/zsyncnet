@@ -22,6 +22,8 @@ namespace zsyncnet
         public ControlFile(Stream stream)
         {
             // Read stream in (could be from any source)
+
+            // TODO: use streams all the way
             var (first, last) = SplitFileRead(stream.ToByteArray());
 
             _header = new Header(first);
@@ -82,16 +84,16 @@ namespace zsyncnet
             stream.Write(StringToBytes(BuildHeaderLine("SHA-1", _header.Sha1)));
             stream.Write(StringToBytes("\n"));
 
-            WriteChecksums(stream, _blockSums, _header.WeakChecksumLength, _header.StrongChecksumLength);
+            WriteChecksums(stream, _blockSums, _header.WeakChecksumLength);
         }
 
-        private static void WriteChecksums(Stream stream, List<BlockSum> blockSums, int weakLength, int strongLength)
+        private static void WriteChecksums(Stream stream, List<BlockSum> blockSums, int weakLength)
         {
             foreach (var blockSum in blockSums)
             {
-                var weakChecksum = Endianness.ToBigEndian(blockSum.Rsum, weakLength);
+                var weakChecksum = EndianConverter.ToBigEndian(blockSum.Rsum, weakLength);
                 stream.Write(weakChecksum);
-                stream.Write(blockSum.Checksum,0,strongLength);
+                stream.Write(blockSum.Checksum);
             }
         }
 

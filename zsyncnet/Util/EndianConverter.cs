@@ -2,7 +2,7 @@
 
 namespace zsyncnet.Util
 {
-    public static class Endianness
+    public static class EndianConverter
     {
         public static byte[] ToBigEndian(uint value, int byteCount)
         {
@@ -16,6 +16,17 @@ namespace zsyncnet.Util
                 value >>= 8;
             }
 
+            return result;
+        }
+
+        public static uint FromBigEndian(byte[] block)
+        {
+            uint result = 0;
+            foreach (var t in block)
+            {
+                result <<= 8;
+                result += t;
+            }
             return result;
         }
     }
