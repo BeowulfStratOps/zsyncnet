@@ -9,27 +9,9 @@ namespace zsyncnet.Control
 {
     internal class BlockSum
     {
-        protected bool Equals(BlockSum other)
-        {
-            return Rsum == other.Rsum;
-        }
-
-        public override bool Equals(object obj)
-        {
-            if (ReferenceEquals(null, obj)) return false;
-            if (ReferenceEquals(this, obj)) return true;
-            if (obj.GetType() != this.GetType()) return false;
-            return Equals((BlockSum) obj);
-        }
-
-        public override int GetHashCode()
-        {
-            return Rsum.GetHashCode();
-        }
-
         public readonly uint Rsum;
         public readonly byte[] Checksum;
-        public int BlockStart { get; set; }
+        public readonly int BlockStart;
 
 
         public BlockSum(uint rsum, byte[] checksum, int start)
@@ -50,16 +32,6 @@ namespace zsyncnet.Control
             }
 
             return blocks;
-        }
-
-        private static byte[] Pad(byte[] array, int start, int end, byte value)
-        {
-            for (int i = start; i < end; i++)
-            {
-                array[i] = value;
-            }
-
-            return array;
         }
 
         private static BlockSum ReadBlockSum(MemoryStream input, int rsumBytes, int checksumBytes, int start)
@@ -95,12 +67,6 @@ namespace zsyncnet.Control
             }
 
             return checksum;
-
-        }
-
-        public bool ChecksumsMatch(BlockSum other)
-        {
-            return Rsum == other.Rsum && Checksum.SequenceEqual(other.Checksum);
         }
     }
 }

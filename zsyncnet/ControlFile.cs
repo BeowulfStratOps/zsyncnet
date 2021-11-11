@@ -64,34 +64,35 @@ namespace zsyncnet
         public void WriteToFile(string path)
         {
             using var fs = new FileStream(path, FileMode.Create, FileAccess.Write);
-            fs.Write(StringToBytes(BuildHeaderLine("zsync",_header.Version)));
-            fs.Write(StringToBytes(BuildHeaderLine("Filename",_header.Filename)));
-            fs.Write(
-                StringToBytes(BuildHeaderLine("MTime", _header.MTime.ToString("r"))));
-            fs.Write(StringToBytes(BuildHeaderLine("Blocksize",_header.BlockSize.ToString())));
-            fs.Write(StringToBytes(BuildHeaderLine("Length",_header.Length.ToString())));
-            fs.Write(StringToBytes(BuildHeaderLine("Hash-Lengths",$"{_header.SequenceMatches},{_header.WeakChecksumLength},{_header.StrongChecksumLength}")));
-            fs.Write(_header.Url != null
-                ? StringToBytes(BuildHeaderLine("URL", _header.Url))
-                : StringToBytes(BuildHeaderLine("URL", _header.Filename)));
-            fs.Write(StringToBytes(BuildHeaderLine("SHA-1", _header.Sha1)));
-            fs.Write(StringToBytes("\n"));
-
-            fs.Write(CheckSumsToByte(_blockSums, _header.WeakChecksumLength, _header.StrongChecksumLength));
+            WriteToStream(fs);
         }
 
-        private static byte[] CheckSumsToByte(List<BlockSum> blockSums, int weakLength, int strongLength)
+        public void WriteToStream(Stream stream)
         {
-            var capacity = blockSums.Count * (weakLength + strongLength);
-            var checkSumsMs = new MemoryStream(capacity);
+            stream.Write(StringToBytes(BuildHeaderLine("zsync",_header.Version)));
+            stream.Write(StringToBytes(BuildHeaderLine("Filename",_header.Filename)));
+            stream.Write(
+                StringToBytes(BuildHeaderLine("MTime", _header.MTime.ToString("r"))));
+            stream.Write(StringToBytes(BuildHeaderLine("Blocksize",_header.BlockSize.ToString())));
+            stream.Write(StringToBytes(BuildHeaderLine("Length",_header.Length.ToString())));
+            stream.Write(StringToBytes(BuildHeaderLine("Hash-Lengths",$"{_header.SequenceMatches},{_header.WeakChecksumLength},{_header.StrongChecksumLength}")));
+            stream.Write(_header.Url != null
+                ? StringToBytes(BuildHeaderLine("URL", _header.Url))
+                : StringToBytes(BuildHeaderLine("URL", _header.Filename)));
+            stream.Write(StringToBytes(BuildHeaderLine("SHA-1", _header.Sha1)));
+            stream.Write(StringToBytes("\n"));
 
+            WriteChecksums(stream, _blockSums, _header.WeakChecksumLength, _header.StrongChecksumLength);
+        }
+
+        private static void WriteChecksums(Stream stream, List<BlockSum> blockSums, int weakLength, int strongLength)
+        {
             foreach (var blockSum in blockSums)
             {
-                checkSumsMs.Write(MiscUtil.Conversion.EndianBitConverter.Big.GetBytes(blockSum.Rsum));
-                checkSumsMs.Write(blockSum.Checksum,0,strongLength);
+                var weakChecksum = Endianness.ToBigEndian(blockSum.Rsum, weakLength);
+                stream.Write(weakChecksum);
+                stream.Write(blockSum.Checksum,0,strongLength);
             }
-
-            return checkSumsMs.ToArray();
         }
 
         private static string BuildHeaderLine(string key, string value)
