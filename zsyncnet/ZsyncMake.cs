@@ -28,7 +28,7 @@ namespace zsyncnet
 
             using var crypto = new SHA1CryptoServiceProvider();
             file.Position = 0;
-            var sha1 = ZsyncUtil.ByteToHex(crypto.ComputeHash(file));
+            var sha1 = crypto.ComputeHash(file).ToHex();
 
             var header = new Header(ZsyncVersion, name, lastWrite, blockSize, fileLength, sequenceMatches,
                 weakChecksumLength, strongCheckSumLength, null, sha1);

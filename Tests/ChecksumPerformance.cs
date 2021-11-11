@@ -40,7 +40,7 @@ namespace Tests
 
             for (int i = 0; i < 1_000_000; i++)
             {
-                ZsyncUtil.ComputeRsum(span, 3);
+                ZsyncRSum.ComputeRsum(span, 3);
             }
 
             var duration = (DateTime.Now - start);

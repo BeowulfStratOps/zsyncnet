@@ -31,7 +31,7 @@ namespace Tests
             {
                 var block = new byte[blockSize];
                 Array.Copy(data, i, block, 0, blockSize);
-                expected.Add(ZsyncUtil.ComputeRsum(block, checksumLength));
+                expected.Add(ZsyncRSum.ComputeRsum(block, checksumLength));
             }
 
             Assert.AreEqual(expected, fromRolling);

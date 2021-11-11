@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 
 namespace zsyncnet.Util
 {
@@ -51,6 +52,18 @@ namespace zsyncnet.Util
                 stream.CopyTo(memoryStream);
                 return memoryStream.ToArray();
             }
+        }
+
+        public static string ToHex(this byte[] bytes)
+        {
+            var sb = new StringBuilder(bytes.Length * 2);
+
+            foreach (var b in bytes)
+            {
+                sb.Append(b.ToString("x2"));
+            }
+
+            return sb.ToString();
         }
     }
 }

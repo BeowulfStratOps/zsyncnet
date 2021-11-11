@@ -16,9 +16,8 @@ namespace Tests
 
             var hashBytes = new byte[16];
             new Md4(data.Length).Hash(data, 0, hashBytes);
-            var hash = ZsyncUtil.ByteToHex(hashBytes);
 
-            Assert.AreEqual("e44ba21ef5d141f3d5c97d34c9ac0542", hash);
+            Assert.AreEqual("e44ba21ef5d141f3d5c97d34c9ac0542", hashBytes.ToHex());
         }
 
         [Test]
@@ -29,9 +28,8 @@ namespace Tests
 
             var hashBytes = new byte[16];
             new Md4(data.Length).Hash(data, 0, hashBytes);
-            var hash = ZsyncUtil.ByteToHex(hashBytes);
 
-            Assert.AreEqual("2651e83ccad13c1054a0942844deb4e4", hash);
+            Assert.AreEqual("2651e83ccad13c1054a0942844deb4e4", hashBytes.ToHex());
         }
 
         [Test]
@@ -42,9 +40,8 @@ namespace Tests
 
             var hashBytes = new byte[16];
             new Md4(data.Length).Hash(data, 0, hashBytes);
-            var hash = ZsyncUtil.ByteToHex(hashBytes);
 
-            Assert.AreEqual("812481225a4cd3b722556ec916aae9cd", hash);
+            Assert.AreEqual("812481225a4cd3b722556ec916aae9cd", hashBytes.ToHex());
         }
     }
 }

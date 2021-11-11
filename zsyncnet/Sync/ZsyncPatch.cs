@@ -85,7 +85,7 @@ namespace zsyncnet.Sync
         {
             stream.Position = 0;
             using var crypto = new SHA1CryptoServiceProvider();
-            var hash = ZsyncUtil.ByteToHex(crypto.ComputeHash(stream));
+            var hash = crypto.ComputeHash(stream).ToHex();
             return hash == checksum;
         }
 

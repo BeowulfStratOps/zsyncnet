@@ -1,9 +1,9 @@
 using System;
 using System.Text;
 
-namespace zsyncnet.Util
+namespace zsyncnet.Hash
 {
-    internal static class ZsyncUtil
+    internal static class ZsyncRSum
     {
         public static uint ComputeRsum(Span<byte> block, int checkSumBytes)
         {
@@ -25,19 +25,6 @@ namespace zsyncnet.Util
             if (bytes < 2 || bytes > 4) throw new ArgumentException(null, nameof(bytes));
             var result = (uint)(x << 16) | y;
             return result & BitMasks2To4[bytes - 2];
-        }
-
-        public static string ByteToHex(byte[] bytes)
-        {
-            var sb = new StringBuilder(bytes.Length * 2);
-
-            foreach (byte b in bytes)
-            {
-                sb.Append(b.ToString("x2"));
-            }
-
-            return sb.ToString();
-
         }
     }
 }
