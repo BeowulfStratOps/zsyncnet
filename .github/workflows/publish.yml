@@ -15,3 +15,7 @@ jobs:
         dotnet-version: 5.0.x
     - name: Test
       run: dotnet test --configuration Release
+    - name: Build
+      run: dotnet pack --configuration Release zsyncnet/
+    - name: Publish
+      run: dotnet nuget push **.nupkg --api-key ${{secrets.GITHUB_TOKEN}} --source https://nuget.pkg.github.com/beowulfstratops/index.json

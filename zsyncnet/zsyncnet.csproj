@@ -8,6 +8,8 @@
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <PackageTags>zsync</PackageTags>
         <LangVersion>latest</LangVersion>
+        <RepositoryUrl>https://github.com/beowulfstratops/zsyncnet</RepositoryUrl>
+        <RepositoryType>git</RepositoryType> 
     </PropertyGroup>
 
     <ItemGroup>
