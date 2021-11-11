@@ -2,10 +2,10 @@
 
     <PropertyGroup>
         <TargetFramework>net5.0</TargetFramework>
-        <PackageVersion>0.0.2</PackageVersion>
-        <Authors>James McCartney</Authors>
-        <PackageProjectUrl>https://github.com/Jsmuk/zsyncnet</PackageProjectUrl>
-        <PackageLicenseUrl>https://opensource.org/licenses/MIT</PackageLicenseUrl>
+        <Version>0.0.9</Version>
+        <Authors>James McCartney, Keithen</Authors>
+        <PackageProjectUrl>https://github.com/BeowulfStratOps/zsyncnet</PackageProjectUrl>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <PackageTags>zsync</PackageTags>
         <LangVersion>latest</LangVersion>
     </PropertyGroup>

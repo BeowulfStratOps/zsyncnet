@@ -9,6 +9,7 @@ namespace Tests
     public class ChecksumPerformance
     {
         [Test]
+        [Ignore("CI is slow.")]
         public void RSumRolling()
         {
             var data = new byte[100 * 1024 * 1024];
@@ -30,6 +31,7 @@ namespace Tests
         }
 
         [Test]
+        [Ignore("CI is slow.")]
         public void RSum()
         {
             var data = new byte[100 * 1024 * 1024];
@@ -49,6 +51,7 @@ namespace Tests
         }
 
         [Test]
+        [Ignore("CI is slow.")]
         public void Md4()
         {
             var data = new byte[100 * 1024 * 1024];
