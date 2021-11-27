@@ -38,7 +38,7 @@ namespace zsyncnet
         /// <param name="cancellationToken"></param>
         /// <exception cref="WebException"></exception>
         /// <exception cref="Exception"></exception>
-        public static void Sync(Uri zsyncFile, DirectoryInfo output, IProgress<long> progress = null, CancellationToken cancellationToken = default)
+        public static void Sync(Uri zsyncFile, DirectoryInfo output, IProgress<ulong> progress = null, CancellationToken cancellationToken = default)
         {
             // Load zsync control file
             var cf = DownloadControlFile(zsyncFile);
@@ -69,22 +69,16 @@ namespace zsyncnet
         /// <param name="progress"></param>
         /// <param name="cancellationToken"></param>
         /// <exception cref="FileNotFoundException"></exception>
-        public static void Sync(ControlFile controlFile, IRangeDownloader downloader, DirectoryInfo output, IProgress<long> progress = null, CancellationToken cancellationToken = default)
+        public static void Sync(ControlFile controlFile, IRangeDownloader downloader, DirectoryInfo output, IProgress<ulong> progress = null, CancellationToken cancellationToken = default)
         {
             var path = Path.Combine(output.FullName, controlFile.GetHeader().Filename.Trim());
             if (!File.Exists(path)) throw new FileNotFoundException();
 
             var partFile = new FileInfo(path + ".part");
-            var oldPartFile = new FileInfo(path + ".part.old");
 
-            if (partFile.Exists)
-                File.Move(partFile.FullName, oldPartFile.FullName);
-
-            var tmpStream = new FileStream(partFile.FullName, FileMode.Create, FileAccess.ReadWrite);
+            var tmpStream = new FileStream(partFile.FullName, FileMode.OpenOrCreate, FileAccess.ReadWrite);
 
             var seeds = new List<Stream> { File.OpenRead(path) };
-            if (oldPartFile.Exists)
-                seeds.Add(oldPartFile.OpenRead());
 
             try
             {
@@ -97,8 +91,6 @@ namespace zsyncnet
                 {
                     seed.Close();
                 }
-                if (oldPartFile.Exists)
-                    oldPartFile.Delete();
             }
 
             File.Move(partFile.FullName, path, true);
@@ -114,7 +106,7 @@ namespace zsyncnet
         /// <param name="output"></param>
         /// <param name="cancellationToken"></param>
         /// <param name="progress"></param>
-        public static void Sync(ControlFile controlFile, List<Stream> seeds, IRangeDownloader downloader, Stream output, IProgress<long> progress = null, CancellationToken cancellationToken = default)
+        public static void Sync(ControlFile controlFile, List<Stream> seeds, IRangeDownloader downloader, Stream output, IProgress<ulong> progress = null, CancellationToken cancellationToken = default)
         {
             ZsyncPatch.Patch(seeds, controlFile, downloader, output, progress, cancellationToken);
         }
