@@ -55,7 +55,7 @@ namespace zsyncnet
                 fileUri = new Uri(cf.GetHeader().Url);
             }
 
-            var downloader = new RangeDownloader(fileUri);
+            var downloader = new RangeDownloader(fileUri, new HttpClient());
 
             Sync(cf, downloader, output, progress, cancellationToken);
         }

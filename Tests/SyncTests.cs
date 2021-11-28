@@ -17,7 +17,14 @@ namespace Tests
 
             var output = new MemoryStream(data.Length);
             var seeds = new List<Stream> { new MemoryStream(seed) };
-            Zsync.Sync(cf, seeds, downloader, output);
+
+            var progress = new SynchronousProgress<ulong>();
+            ulong totalDone = 0;
+            progress.ProgressChanged += p => totalDone += p;
+
+            Zsync.Sync(cf, seeds, downloader, output, progress);
+
+            Assert.AreEqual(data.Length, totalDone);
 
             Assert.AreEqual(data, output.ToArray());
             Assert.AreEqual(expectedBytesDownloads, downloader.TotalBytesDownloaded);

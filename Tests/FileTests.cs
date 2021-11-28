@@ -11,8 +11,8 @@ namespace Tests
     {
         // TODO: tests are heavily relying on implementation details. fix that.
 
-        private DirectoryInfo _tempPath;
-        private FileInfo _targetFile;
+        private DirectoryInfo _tempPath = null!;
+        private FileInfo _targetFile = null!;
 
         private const int RandomDataLength = 2048 * 5;
 
@@ -99,7 +99,7 @@ namespace Tests
             {
                 Zsync.Sync(cf, downloader, _tempPath, null, cts.Token);
             }
-            catch (OperationCanceledException e)
+            catch (OperationCanceledException)
             {
             }
 
@@ -108,7 +108,7 @@ namespace Tests
             // check that the first bit of download was written to the part file
             var partPath = Path.Join(_tempPath.FullName, "target.bin.part");
             Assert.AreEqual(data.AsSpan(0, RandomDataLength).ToArray(),
-                File.ReadAllBytes(partPath));
+                File.ReadAllBytes(partPath).AsSpan(0, RandomDataLength).ToArray());
 
             // just making sure cancellation worked..
             Assert.AreNotEqual(data, File.ReadAllBytes(_targetFile.FullName));
@@ -131,7 +131,7 @@ namespace Tests
             {
                 Zsync.Sync(cf, downloader, _tempPath, null, cts.Token);
             }
-            catch (OperationCanceledException e)
+            catch (OperationCanceledException)
             {
             }
 

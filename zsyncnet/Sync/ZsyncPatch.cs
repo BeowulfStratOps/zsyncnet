@@ -19,72 +19,51 @@ namespace zsyncnet.Sync
         {
             var header = cf.GetHeader();
 
+            // remember data size, so that we don't scan past useful input
+            var existingOutputSize = output.Length;
+            // set length here to reserve space.
+            if (output.Length < header.Length)
+                output.SetLength(header.Length);
+
             var remoteBlockSums = cf.GetBlockSums();
 
             Logger.Trace($"Building checksum table");
             var checksumTable = new CheckSumTable(remoteBlockSums);
 
-            Logger.Info($"Comparing files...");
+            Logger.Trace($"Comparing files...");
 
-            // TODO: should we copy right when we find a block, instead of having to remember which stream it came from?
-            var existingBlocks = new Dictionary<int, (Stream source, long offset)>();
+            // block indices for which we found a local source
+            var existingBlocks = new HashSet<int>();
+
+            // we'll be writing to this stream, so handle it first, before we overwrite anything useful
+            // .part should also only have useful data, so it doesn't hurt do check first
+            FindExistingBlocks(output, output, existingOutputSize, existingBlocks, header, checksumTable, progress, cancellationToken);
 
             foreach (var seed in seeds)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                FindExistingBlocks(seed, existingBlocks, header, checksumTable, false, cancellationToken);
+                FindExistingBlocks(output, seed, seed.Length, existingBlocks, header, checksumTable, progress, cancellationToken);
             }
 
-            // output stream needs to prevent overwriting itself, so has more restrictions -> can use less optimizations
-            //  it should therefore run last, to use as many existing blocks from other seeds as possible
-            FindExistingBlocks(output, existingBlocks, header, checksumTable, true, cancellationToken);
+            Logger.Debug($"Total existing blocks {existingBlocks.Count}");
 
-            Logger.Info($"Total existing blocks {existingBlocks.Count}");
+            var downloadRanges = BuildDownloadRanges(header.Length, header.BlockSize, existingBlocks);
 
-            var singleBlockSyncOps = BuildSyncOps(header.Length, header.BlockSize, existingBlocks);
-
-            // TODO: we should probably combine copies as well
-            var syncOps = CombineDownloads(singleBlockSyncOps);
-
-            var copyBuffer = new byte[header.BlockSize];
-
-            ulong done = 0;
-
-            var blockIndex = 0;
-            foreach (var syncOp in syncOps)
+            foreach (var (blockIndex, blockCount) in downloadRanges)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (syncOp.IsLocal)
-                {
-                    var input = syncOp.Source;
-                    input.Position = syncOp.LocalOffset;
-                    var length = header.BlockSize;
-                    if (syncOp.LocalOffset + length > input.Length)
-                        length = (int)(input.Length - syncOp.LocalOffset);
-                    input.Read(copyBuffer, 0, length);
-                    // input and output stream might be the same -> need to set the position
-                    output.Position = blockIndex * header.BlockSize;
-                    output.Write(copyBuffer, 0, length);
-                    done += (ulong)length;
-                    blockIndex++;
-                }
-                else
-                {
-                    output.Position = blockIndex * header.BlockSize;
-                    var from = syncOp.BlockIndex * (long)header.BlockSize;
-                    var to = (syncOp.BlockIndex + syncOp.BlockCount) * (long)header.BlockSize;
-                    if (to > header.Length) to = header.Length;
-                    var content = downloader.DownloadRange(from, to);
-                    content.CopyTo(output);
-                    done += (ulong)(to - from);
-                    blockIndex += syncOp.BlockCount;
-                }
-                progress?.Report(done);
+                output.Position = blockIndex * header.BlockSize;
+                var from = blockIndex * (long)header.BlockSize;
+                var to = (blockIndex + blockCount) * (long)header.BlockSize;
+                if (to > header.Length) to = header.Length;
+                var content = downloader.DownloadRange(from, to);
+                content.CopyToWithProgress(output, 1024 * 1024, progress);
             }
 
+            output.SetLength(header.Length);
             output.Flush();
 
-            Logger.Info("Verifying file");
+            Logger.Debug("Verifying file");
 
             cancellationToken.ThrowIfCancellationRequested();
             if (!VerifyFile(output, header.Sha1))
@@ -99,46 +78,37 @@ namespace zsyncnet.Sync
             return hash == checksum;
         }
 
-        private static List<SyncOperation> BuildSyncOps(long fileSize, int blockSize,
-            Dictionary<int, (Stream source, long offset)> existingBlocks)
+        private static List<DownloadRange> BuildDownloadRanges(long fileSize, int blockSize, HashSet<int> existingBlocks)
         {
-            var result = new List<SyncOperation>();
+            var result = new List<DownloadRange>();
 
             var totalBlockCount = (int)(fileSize / blockSize);
             if (fileSize % blockSize > 0) totalBlockCount++;
 
-            // for every block that we need, check if we have a local copy. otherwise download
+            var currentIndex = -1;
+            var currentLength = -1;
+
             for (int i = 0; i < totalBlockCount; i++)
             {
-                result.Add(existingBlocks.TryGetValue(i, out var localInfo)
-                    ? new SyncOperation(i, 1, true, localInfo.offset, localInfo.source)
-                    : new SyncOperation(i, 1, false));
-            }
+                // for every block that we need, check if we have a local copy. otherwise download
+                if (existingBlocks.Contains(i))
+                    continue;
 
-            return result;
-        }
-
-
-        private static List<SyncOperation> CombineDownloads(List<SyncOperation> syncOperations)
-        {
-            // combine consecutive download operations
-
-            if (!syncOperations.Any()) return new List<SyncOperation>();
-
-            var result = new List<SyncOperation>();
-
-            var current = syncOperations[0];
-            foreach (var operation in syncOperations.Skip(1))
-            {
-                if (operation.IsLocal || current.IsLocal)
+                if (i == currentIndex + currentLength)
                 {
-                    result.Add(current);
-                    current = operation;
+                    currentLength++;
                     continue;
                 }
-                current = current with { BlockCount = current.BlockCount + 1 };
+
+                if (currentIndex >= 0)
+                    result.Add(new DownloadRange(currentIndex, currentLength));
+
+                currentIndex = i;
+                currentLength = 1;
             }
-            result.Add(current);
+
+            if (currentIndex >= 0)
+                result.Add(new DownloadRange(currentIndex, currentLength));
 
             return result;
         }
@@ -147,10 +117,10 @@ namespace zsyncnet.Sync
         ///
         /// </summary>
         /// <returns>Dict remoteBlockIndex -> localOffset</returns>
-        private static void FindExistingBlocks(Stream stream, Dictionary<int, (Stream source, long offset)> result,
-            Header header, CheckSumTable remoteBlockSums, bool isOutputStream, CancellationToken cancellationToken)
+        private static void FindExistingBlocks(Stream output, Stream input, long inputLength, HashSet<int> existingBlocks,
+            Header header, CheckSumTable remoteBlockSums, IProgress<ulong> progress, CancellationToken cancellationToken)
         {
-            if (stream.Length < header.BlockSize * 2) return;
+            if (inputLength < header.BlockSize * 2) return;
 
             if (header.SequenceMatches is < 1 or > 2)
                 throw new NotSupportedException();
@@ -158,48 +128,47 @@ namespace zsyncnet.Sync
             var start = DateTime.Now;
 
             const long sectionSize = 10 * 1024 * 1024; // read ~10mb at a time
-            var totalLength = stream.Length;
 
             var buffer = new byte[sectionSize + header.BlockSize];
 
-            for (long offset = 0; offset < totalLength; offset += sectionSize)
+            for (long offset = 0; offset < inputLength; offset += sectionSize)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                stream.Position = offset;
+                input.Position = offset;
 
                 // read two blocksizes into the next section to have overlapping slices
                 var length = sectionSize + 2 * header.BlockSize;
-                if (offset + length <= totalLength) // somewhere in the middle of the file. can just read.
+                if (offset + length <= inputLength) // somewhere in the middle of the file. can just read.
                 {
-                    stream.Read(buffer);
+                    input.Read(buffer);
                 }
                 else
                 {
                     // at the end of the file
                     // round up to next block border and pad
-                    length = totalLength - offset;
+                    length = inputLength - offset;
                     var blockCount = length / header.BlockSize;
                     if (length % header.BlockSize > 0) blockCount++;
                     length = blockCount * header.BlockSize;
 
                     buffer = new byte[length];
                     Array.Fill<byte>(buffer, 0); // pad with zeroes
-                    stream.Read(buffer, 0, (int)(totalLength - offset));
+                    input.Read(buffer, 0, (int)(inputLength - offset));
                 }
 
-                FindExistingBlocks(buffer, offset, header, remoteBlockSums, result, stream, isOutputStream);
+                FindExistingBlocks(output, buffer, offset, header, remoteBlockSums, existingBlocks, output == input, progress);
             }
 
-            Logger.Info($"Done in {(DateTime.Now-start).TotalSeconds:F2}");
+            Logger.Debug($"Done in {(DateTime.Now-start).TotalSeconds:F2}");
         }
 
 
-        private static void FindExistingBlocks(byte[] buffer, long bufferOffset, Header header,
-            CheckSumTable remoteBlockSums, Dictionary<int, (Stream source, long offset)> result, Stream source,
-            bool isOutputStream)
+        private static void FindExistingBlocks(Stream output, byte[] inputBuffer, long bufferOffset, Header header,
+            CheckSumTable remoteBlockSums, HashSet<int> existingBlocks, bool isOutputStream,
+            IProgress<ulong> progress)
         {
-            var rollingChecksum = new RollingChecksum(buffer, header.BlockSize, header.WeakChecksumLength);
+            var rollingChecksum = new RollingChecksum(inputBuffer, header.BlockSize, header.WeakChecksumLength);
 
             // if we find a block, we only check at the next possible block location. keep track of this here.
             var earliest = header.BlockSize;
@@ -221,7 +190,7 @@ namespace zsyncnet.Sync
                 rollingChecksum.Next();
             }
 
-            for (int i = 2 * header.BlockSize; i <= buffer.Length; i++)
+            for (int i = 2 * header.BlockSize; i <= inputBuffer.Length; i++)
             {
                 var previousRSum = oldRsums[i % header.BlockSize];
                 var rSum = rollingChecksum.Current;
@@ -230,7 +199,7 @@ namespace zsyncnet.Sync
                 oldRsums[i % header.BlockSize] = rSum;
 
                 // don't get a new one past EOF
-                if (i < buffer.Length) rollingChecksum.Next();
+                if (i < inputBuffer.Length) rollingChecksum.Next();
 
                 // we are in an active block. skip past it, ahead to the next earliest possible block index
                 if (i < earliest) continue;
@@ -245,14 +214,14 @@ namespace zsyncnet.Sync
                 // check all possibly matching block for this rum
                 foreach (var (expectedPreviousRSum, md4, previousMd4, remoteBlockIndex) in blocks)
                 {
-                    if (result.ContainsKey(remoteBlockIndex)) continue; // we already have a source for that block.
+                    if (existingBlocks.Contains(remoteBlockIndex)) continue; // we already have a source for that block.
 
                     // when using sequence matches, we check the previous rsum as well. this allows smaller rsum sizes.
                     if (header.SequenceMatches == 2 && previousRSum != expectedPreviousRSum) continue;
 
                     if (!hashed)
                     {
-                        md4Hasher.Hash(buffer, i - header.BlockSize, md4Hash);
+                        md4Hasher.Hash(inputBuffer, i - header.BlockSize, md4Hash);
                         hashed = true;
                     }
 
@@ -264,28 +233,40 @@ namespace zsyncnet.Sync
                     // if this seed is also the output stream, we can't copy blocks from the start of the file to the end,
                     //  as they would have been overwritten by the time we need them.
                     // We didn't check before hashing, because it's still a valid block for the purpose of skipping to a new block.
-                    if (isOutputStream && remoteBlockIndex * header.BlockSize > i - header.BlockSize + bufferOffset)
+                    if (isOutputStream && remoteBlockIndex * header.BlockSize < bufferOffset)
                         continue;
 
-                    result.Add(remoteBlockIndex, (source, i - header.BlockSize + bufferOffset));
+                    CopyBlock(output, remoteBlockIndex, inputBuffer, i - header.BlockSize, header, progress);
+                    existingBlocks.Add(remoteBlockIndex);
 
                     // previous one might have been the start of a sequence and not been added yet
-                    if (remoteBlockIndex > 0 && !result.ContainsKey(remoteBlockIndex - 1))
-                    {
-                        if (!hashedPrevious)
-                        {
-                            md4Hasher.Hash(buffer, i - 2 * header.BlockSize, previousMd4Hash);
-                            hashedPrevious = true;
-                        }
+                    if (remoteBlockIndex == 0 || existingBlocks.Contains(remoteBlockIndex - 1)) continue;
 
-                        if (HashEqual(previousMd4, previousMd4Hash))
-                        {
-                            result.Add(remoteBlockIndex - 1, (source, i - 2 * header.BlockSize + bufferOffset));
-                        }
+                    if (!hashedPrevious)
+                    {
+                        md4Hasher.Hash(inputBuffer, i - 2 * header.BlockSize, previousMd4Hash);
+                        hashedPrevious = true;
                     }
+
+                    if (!HashEqual(previousMd4, previousMd4Hash)) continue;
+
+                    CopyBlock(output, remoteBlockIndex - 1, inputBuffer, i - 2 * header.BlockSize,
+                        header, progress);
+                    existingBlocks.Add(remoteBlockIndex - 1);
 
                 }
             }
+        }
+
+        private static void CopyBlock(Stream output, int blockIndex, byte[] source, int index, Header header, IProgress<ulong> progress)
+        {
+            // TODO: don't need to copy if input == output and the position is the same (ie data is where it's supposed to be already)
+            output.Position = blockIndex * header.BlockSize;
+            var length = header.BlockSize;
+            if (blockIndex * header.BlockSize + length > header.Length)
+                length = (int)(header.Length - blockIndex * header.BlockSize);
+            output.Write(source, index, length);
+            progress?.Report((ulong)length);
         }
 
         private static bool HashEqual(byte[] a, byte[] b)

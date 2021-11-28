@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -64,6 +65,25 @@ namespace zsyncnet.Util
             }
 
             return sb.ToString();
+        }
+
+        public static void CopyToWithProgress(this Stream source, Stream destination, int bufferSize, IProgress<ulong> progress)
+        {
+            // borrowed from Stream.CopyTo
+            var buffer = ArrayPool<byte>.Shared.Rent(bufferSize);
+            try
+            {
+                int read;
+                while ((read = source.Read(buffer, 0, buffer.Length)) != 0)
+                {
+                    destination.Write(buffer, 0, read);
+                    progress?.Report((ulong)read);
+                }
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buffer);
+            }
         }
     }
 }

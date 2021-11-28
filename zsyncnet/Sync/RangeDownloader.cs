@@ -7,17 +7,16 @@ using NLog;
 
 namespace zsyncnet.Sync
 {
-    internal class RangeDownloader : IRangeDownloader
+    public class RangeDownloader : IRangeDownloader
     {
         private readonly Uri _fileUri;
-        private readonly HttpClient _client = new();
+        private readonly HttpClient _client;
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
-        public long TotalBytesDownloaded { get; private set; }
-        public long RangesDownloaded { get; private set; }
 
-        public RangeDownloader(Uri fileUri)
+        public RangeDownloader(Uri fileUri, HttpClient client)
         {
             _fileUri = fileUri;
+            _client = client;
         }
 
         public Stream DownloadRange(long from, long to)
@@ -32,8 +31,6 @@ namespace zsyncnet.Sync
             };
 
             Logger.Trace($"Downloading {range}");
-            TotalBytesDownloaded += to - from;
-            RangesDownloaded++;
 
             var response = _client.Send(req, HttpCompletionOption.ResponseHeadersRead);
             if (response.StatusCode != HttpStatusCode.PartialContent) throw new HttpRequestException();

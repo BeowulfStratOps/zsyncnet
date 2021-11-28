@@ -26,7 +26,28 @@ namespace Tests
         }
 
         [Test]
-        public void SimplePartFile()
+        public void SimplePartFileSmall()
+        {
+            var random = new Random();
+
+            // blocksize will be 2048, with sequence = 2. -> effective blocksize for testing is 4096
+
+            var data = new byte[4 * 4096];
+            random.NextBytes(data);
+
+            // seed has block 2 and 3
+            var seed = new byte[2 * 4096];
+            Array.Copy(data, 1 * 4096, seed, 0, 2 * 4096);
+
+            // part has block 1
+            var part = new byte[1 * 4096];
+            Array.Copy(data, 0 * 4096, part, 0, 1 * 4096);
+
+            DoTest(seed, data, part, 1 * 4096, 1);
+        }
+
+        [Test]
+        public void SimplePart()
         {
             var random = new Random();
 
@@ -47,41 +68,26 @@ namespace Tests
         [Test]
         public void PartFileWithBackwardCopies()
         {
+            // we have a 10mb buffer in memory. within that, we can copy from bigger to smaller indices.
+            // so for testing, we need to go past those 10mb
+
             var random = new Random();
 
-            var data = new byte[2048 * 2048];
+            const int mb = 1024 * 1024;
+
+            var data = new byte[20 * mb];
             random.NextBytes(data);
 
-            // seed has block 500 to 1000
-            var seed = new byte[500 * 2048];
-            Array.Copy(data, 500 * 2048, seed, 0, 500 * 2048);
+            // seed has mb 5 to 10
+            var seed = new byte[5 * mb];
+            Array.Copy(data, 5 * mb, seed, 0, 5 * mb);
 
-            // part has block 1000 to 1500 -> can't use them.
-            var part = new byte[500 * 2048];
-            Array.Copy(data, 1000 * 2048, part, 0, 500 * 2048);
+            // part has 10mb of junk, then block 0 to 5 -> can't use it.
+            var part = new byte[15 * mb];
+            random.NextBytes(part.AsSpan(0, 10 * mb));
+            Array.Copy(data, 0 * mb, part, 10 * mb, 5 * mb);
 
-            DoTest(seed, data, part, 1548 * 2048, 2);
-        }
-
-        [Test]
-        public void PartFileWithBackwardCopiesSmall()
-        {
-            var random = new Random();
-
-            // blocksize will be 2048, with sequence = 2. -> effective blocksize for testing is 4096
-
-            var data = new byte[4 * 4096];
-            random.NextBytes(data);
-
-            // seed has block 2
-            var seed = new byte[1 * 4096];
-            Array.Copy(data, 1 * 4096, seed, 0, 1 * 4096);
-
-            // part has block 3 -> can't use it.
-            var part = new byte[1 * 4096];
-            Array.Copy(data, 2 * 4096, part, 0, 1 * 4096);
-
-            DoTest(seed, data, part, 3 * 4096, 2);
+            DoTest(seed, data, part, 15 * mb, 2);
         }
     }
 }
