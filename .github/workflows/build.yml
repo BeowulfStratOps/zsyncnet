@@ -23,6 +23,6 @@ jobs:
     - uses: actions/upload-artifact@v2
       with:
         name: nuget-package
-        path: **.nupkg
+        path: ./**.nupkg
     #- name: Publish
     #  run: dotnet nuget push **.nupkg --api-key ${{secrets.GITHUB_TOKEN}} --source https://nuget.pkg.github.com/beowulfstratops/index.json
