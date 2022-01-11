@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using zsyncnet.Sync;
+using zsyncnet.Util;
 
 [assembly: InternalsVisibleTo("Tests")]
 
@@ -72,7 +73,17 @@ namespace zsyncnet
         public static void Sync(ControlFile controlFile, IRangeDownloader downloader, DirectoryInfo output, IProgress<ulong> progress = null, CancellationToken cancellationToken = default)
         {
             var path = Path.Combine(output.FullName, controlFile.GetHeader().Filename.Trim());
-            if (!File.Exists(path)) throw new FileNotFoundException();
+            if (!File.Exists(path))
+            {
+                // File does not exist on disk, we just need to download it 
+                var downloadStream = downloader.Download();
+                
+                var stream = new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite);
+                downloadStream.CopyToWithProgress(stream, 2024, progress);
+                
+                File.SetLastWriteTime(path, controlFile.GetHeader().MTime);
+                return;
+            }
 
             var partFile = new FileInfo(path + ".part");
 

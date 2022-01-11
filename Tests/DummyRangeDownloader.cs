@@ -29,5 +29,14 @@ namespace Tests
 
             return stream;
         }
+
+        public Stream Download()
+        {
+            _logger.Trace("Downloading entire file");
+            var stream = new MemoryStream(_data);
+            OnDownload?.Invoke();
+
+            return stream;
+        }
     }
 }

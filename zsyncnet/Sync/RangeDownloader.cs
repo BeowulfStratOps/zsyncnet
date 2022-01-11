@@ -36,5 +36,12 @@ namespace zsyncnet.Sync
             if (response.StatusCode != HttpStatusCode.PartialContent) throw new HttpRequestException();
             return response.Content.ReadAsStream();
         }
+
+        public Stream Download()
+        {
+            var response = _client.GetStreamAsync(_fileUri);
+            if (!response.IsCompletedSuccessfully) throw new HttpRequestException();
+            return response.ConfigureAwait(continueOnCapturedContext: false).GetAwaiter().GetResult();
+        }
     }
 }
