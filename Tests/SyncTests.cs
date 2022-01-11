@@ -31,6 +31,26 @@ namespace Tests
             Assert.AreEqual(expectedRanges, downloader.RangesDownloaded);
         }
 
+        private static void DoTestFullDownload(byte[] data, int expectedBytesDownloads)
+        {
+            var cf = ZsyncMake.MakeControlFile(new MemoryStream(data), DateTime.Now, "test.bin");
+            var downloader = new DummyRangeDownloader(data);
+
+            var output = new MemoryStream(data.Length);
+            var seeds = new List<Stream> { };
+
+            var progress = new SynchronousProgress<ulong>();
+            ulong totalDone = 0;
+            progress.ProgressChanged += p => totalDone += p;
+
+            Zsync.Sync(cf, seeds, downloader, output, progress);
+
+            Assert.AreEqual(data.Length, totalDone);
+
+            Assert.AreEqual(data, output.ToArray());
+            Assert.AreEqual(expectedBytesDownloads, downloader.TotalBytesDownloaded);
+        }
+
         [Test]
         public void NoChange()
         {
@@ -200,6 +220,17 @@ namespace Tests
             }
 
             DoTest(seed, data, 2048, 1);
+        }
+
+        [Test]
+        public void FulLDownload()
+        {
+            var random = new Random();
+            
+            var data = new byte[2048 * 2048];
+            random.NextBytes(data);
+
+            DoTestFullDownload(data, 4194304);
         }
     }
 }

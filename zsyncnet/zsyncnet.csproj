@@ -9,7 +9,8 @@
         <PackageTags>zsync</PackageTags>
         <LangVersion>latest</LangVersion>
         <RepositoryUrl>https://github.com/beowulfstratops/zsyncnet</RepositoryUrl>
-        <RepositoryType>git</RepositoryType> 
+        <RepositoryType>git</RepositoryType>
+        <PackageVersion>0.1.3</PackageVersion> 
     </PropertyGroup>
 
     <ItemGroup>
