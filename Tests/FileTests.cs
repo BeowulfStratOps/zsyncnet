@@ -103,7 +103,7 @@ namespace Tests
             {
             }
 
-            Assert.AreEqual(new [] { "target.bin", "target.bin.part" }, _tempPath.EnumerateFiles().Select(fi => fi.Name).ToArray());
+            Assert.AreEqual(new [] { "target.bin", "target.bin.part" }, _tempPath.EnumerateFiles().Select(fi => fi.Name).OrderBy(n => n.Length).ToArray());
 
             // check that the first bit of download was written to the part file
             var partPath = Path.Join(_tempPath.FullName, "target.bin.part");
@@ -135,7 +135,7 @@ namespace Tests
             {
             }
 
-            Assert.AreEqual(new [] { "target.bin", "target.bin.part" }, _tempPath.EnumerateFiles().Select(fi => fi.Name).ToArray());
+            Assert.AreEqual(new [] { "target.bin", "target.bin.part" }, _tempPath.EnumerateFiles().Select(fi => fi.Name).OrderBy(n => n.Length).ToArray());
         }
     }
 }
