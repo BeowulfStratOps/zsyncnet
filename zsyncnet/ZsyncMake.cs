@@ -26,7 +26,7 @@ namespace zsyncnet
 
             var checkSums = ComputeCheckSums(file, weakChecksumLength, strongCheckSumLength, blockSize);
 
-            using var crypto = new SHA1CryptoServiceProvider();
+            using var crypto = SHA1.Create();
             file.Position = 0;
             var sha1 = crypto.ComputeHash(file).ToHex();
 

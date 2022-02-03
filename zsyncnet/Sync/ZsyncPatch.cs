@@ -73,7 +73,7 @@ namespace zsyncnet.Sync
         private static bool VerifyFile(Stream stream, string checksum)
         {
             stream.Position = 0;
-            using var crypto = new SHA1CryptoServiceProvider();
+            using var crypto = SHA1.Create();
             var hash = crypto.ComputeHash(stream).ToHex();
             return hash == checksum;
         }
