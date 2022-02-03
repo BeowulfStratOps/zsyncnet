@@ -33,11 +33,13 @@ namespace Tests
 
         private static void DoTestFullDownload(byte[] data, int expectedBytesDownloads)
         {
+            // TODO: this doesn't actually check the download, but rather a sync from an empty file
+
             var cf = ZsyncMake.MakeControlFile(new MemoryStream(data), DateTime.Now, "test.bin");
             var downloader = new DummyRangeDownloader(data);
 
             var output = new MemoryStream(data.Length);
-            var seeds = new List<Stream> { };
+            var seeds = new List<Stream>();
 
             var progress = new SynchronousProgress<ulong>();
             ulong totalDone = 0;
@@ -223,10 +225,18 @@ namespace Tests
         }
 
         [Test]
+        public void RepeatingData()
+        {
+            var data = new byte[2048 * 2048];
+            var seed = new byte[data.Length];
+            DoTest(seed, data, 0, 0);
+        }
+
+        [Test]
         public void FulLDownload()
         {
             var random = new Random();
-            
+
             var data = new byte[2048 * 2048];
             random.NextBytes(data);
 

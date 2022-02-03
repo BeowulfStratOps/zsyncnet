@@ -214,13 +214,9 @@ namespace zsyncnet.Sync
                 // we want to check all remote blocks that we don't have yet, and existing ones only as long as we don't have one that allows us to skip ahead
                 var blocksWithoutMatch = blocks.Where(b => !existingBlocks.Contains(b.BlockIndex));
                 var blocksWithMatch = blocks.Where(b => existingBlocks.Contains(b.BlockIndex));
-                var didSkip = false;
 
                 foreach (var (expectedPreviousRSum, md4, previousMd4, remoteBlockIndex) in blocksWithoutMatch.Concat(blocksWithMatch))
                 {
-                    if (didSkip && existingBlocks.Contains(remoteBlockIndex))
-                        break; // we checked all remote blocks we didn't have sources for, and found a reason to skip
-
                     // when using sequence matches, we check the previous rsum as well. this allows smaller rsum sizes.
                     if (header.SequenceMatches == 2 && previousRSum != expectedPreviousRSum) continue;
 
@@ -234,7 +230,9 @@ namespace zsyncnet.Sync
 
                     // earliest index at which a new block can start
                     earliest = i + header.BlockSize;
-                    didSkip = true;
+
+                    if (existingBlocks.Contains(remoteBlockIndex))
+                        break; // we just needed a reason to skip. no need to copy anything.
 
                     // if this seed is also the output stream, we can't copy blocks from the start of the file to the end,
                     //  as they would have been overwritten by the time we need them.
