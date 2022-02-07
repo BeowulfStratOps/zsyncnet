@@ -31,14 +31,12 @@ namespace zsyncnet
         }
 
         /// <summary>
-        /// Syncs a file
+        /// Syncs a file in the output folder from a remote file. Can handle .part files.
         /// </summary>
-        /// <param name="zsyncFile"></param>
-        /// <param name="output"></param>
-        /// <param name="progress"></param>
-        /// <param name="cancellationToken"></param>
-        /// <exception cref="WebException"></exception>
-        /// <exception cref="Exception"></exception>
+        /// <param name="zsyncFile">Uri to the remote file. A .zsync file is assumed to be next to it and will be used to find or create the local file</param>
+        /// <param name="output">Folder in which the work file and a potential .part file exist or will be created.</param>
+        /// <param name="cancellationToken">Cancels the syncing operation. Downloaded data is continuously written to the workingStream and will not be lost.</param>
+        /// <param name="progress">Receives incremental progress in bytes. The total sum will be equal to the target file size when the operation is complete.</param>
         public static void Sync(Uri zsyncFile, DirectoryInfo output, IProgress<ulong> progress = null, CancellationToken cancellationToken = default)
         {
             // Load zsync control file
@@ -62,25 +60,24 @@ namespace zsyncnet
         }
 
         /// <summary>
-        ///
+        /// Syncs a file in the output folder from a control file and file downloader. Can handle .part files.
         /// </summary>
-        /// <param name="controlFile"></param>
-        /// <param name="downloader"></param>
-        /// <param name="output"></param>
-        /// <param name="progress"></param>
-        /// <param name="cancellationToken"></param>
-        /// <exception cref="FileNotFoundException"></exception>
+        /// <param name="controlFile">The control file. The filename is used to find or create the working file in the output folder</param>
+        /// <param name="downloader">Downloader for the remote file.</param>
+        /// <param name="output">Folder in which the work file and a potential .part file exist or will be created.</param>
+        /// <param name="cancellationToken">Cancels the syncing operation. Downloaded data is continuously written to the workingStream and will not be lost.</param>
+        /// <param name="progress">Receives incremental progress in bytes. The total sum will be equal to the target file size when the operation is complete.</param>
         public static void Sync(ControlFile controlFile, IRangeDownloader downloader, DirectoryInfo output, IProgress<ulong> progress = null, CancellationToken cancellationToken = default)
         {
             var path = Path.Combine(output.FullName, controlFile.GetHeader().Filename.Trim());
             if (!File.Exists(path))
             {
-                // File does not exist on disk, we just need to download it 
+                // File does not exist on disk, we just need to download it
                 var downloadStream = downloader.Download();
-                
+
                 var stream = new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite);
                 downloadStream.CopyToWithProgress(stream, 2024, progress);
-                
+
                 File.SetLastWriteTime(path, controlFile.GetHeader().MTime);
                 return;
             }
@@ -109,17 +106,17 @@ namespace zsyncnet
         }
 
         /// <summary>
-        /// output stream can not be a seed as well.
+        /// Patches a file (workingStream) according to the passed controlFile. Additional seeds can be specified.
         /// </summary>
-        /// <param name="controlFile"></param>
-        /// <param name="seeds"></param>
-        /// <param name="downloader"></param>
-        /// <param name="output"></param>
-        /// <param name="cancellationToken"></param>
-        /// <param name="progress"></param>
-        public static void Sync(ControlFile controlFile, List<Stream> seeds, IRangeDownloader downloader, Stream output, IProgress<ulong> progress = null, CancellationToken cancellationToken = default)
+        /// <param name="controlFile">The control file. The filename in it is ignored.</param>
+        /// <param name="seeds">Additional seeding streams. Must not include the workingStream. Streams are not closed.</param>
+        /// <param name="downloader">Downloader for the remote file.</param>
+        /// <param name="workingStream">Working Stream. If it contains any data, that data is used as a seed. Will not be closed.</param>
+        /// <param name="cancellationToken">Cancels the syncing operation. Downloaded data is continuously written to the workingStream and will not be lost.</param>
+        /// <param name="progress">Receives incremental progress in bytes. The total sum will be equal to the target file size when the operation is complete.</param>
+        public static void Sync(ControlFile controlFile, List<Stream> seeds, IRangeDownloader downloader, Stream workingStream, IProgress<ulong> progress = null, CancellationToken cancellationToken = default)
         {
-            ZsyncPatch.Patch(seeds, controlFile, downloader, output, progress, cancellationToken);
+            ZsyncPatch.Patch(seeds, controlFile, downloader, workingStream, progress, cancellationToken);
         }
     }
 }

@@ -8,6 +8,9 @@ using zsyncnet.Util;
 
 namespace zsyncnet
 {
+    /// <summary>
+    ///
+    /// </summary>
     public class ControlFile
     {
         private readonly Header _header;
@@ -19,6 +22,10 @@ namespace zsyncnet
             _blockSums = blockSums;
         }
 
+        /// <summary>
+        /// Reads a control file from a stream
+        /// </summary>
+        /// <param name="stream">The control file's data.</param>
         public ControlFile(Stream stream)
         {
             // Read stream in (could be from any source)
@@ -63,12 +70,20 @@ namespace zsyncnet
             return (first, last);
         }
 
+        /// <summary>
+        /// Serializes the control file to a file.
+        /// </summary>
+        /// <param name="path">File to write to.</param>
         public void WriteToFile(string path)
         {
             using var fs = new FileStream(path, FileMode.Create, FileAccess.Write);
             WriteToStream(fs);
         }
 
+        /// <summary>
+        /// Serializes the control file to a stream
+        /// </summary>
+        /// <param name="stream">target data stream</param>
         public void WriteToStream(Stream stream)
         {
             stream.Write(StringToBytes(BuildHeaderLine("zsync",_header.Version)));

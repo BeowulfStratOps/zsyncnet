@@ -2,7 +2,7 @@
 
 namespace zsyncnet.Util
 {
-    public static class EndianConverter
+    internal static class EndianConverter
     {
         public static byte[] ToBigEndian(uint value, int byteCount)
         {

@@ -14,6 +14,13 @@ namespace zsyncnet
         private const int BlockSizeLarge = 4096;
         private const string ZsyncVersion = "0.6.2";
 
+        /// <summary>
+        /// Creates a control file from a data stream and meta data
+        /// </summary>
+        /// <param name="file">Date for which the control file should be generated.</param>
+        /// <param name="lastWrite">Last update time of the data. Will be included in the control file.</param>
+        /// <param name="name">Filename that will be included in the control file</param>
+        /// <returns>The generated control file</returns>
         public static ControlFile MakeControlFile(Stream file, DateTime lastWrite, string name)
         {
             var fileLength = file.Length;
@@ -36,6 +43,11 @@ namespace zsyncnet
             return new ControlFile(header, checkSums);
         }
 
+        /// <summary>
+        /// Creates a control file for a given file. Includes the file's last updated time and filename.
+        /// </summary>
+        /// <param name="file">File info for an existing file, for which the control file should be generated.</param>
+        /// <returns>The generated control file</returns>
         public static ControlFile MakeControlFile(FileInfo file)
         {
             var mtime = File.GetLastWriteTimeUtc(file.FullName);

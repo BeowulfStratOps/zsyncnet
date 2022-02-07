@@ -17,6 +17,9 @@ namespace zsyncnet.Sync
 
         public static void Patch(List<Stream> seeds, ControlFile cf, IRangeDownloader downloader, Stream output, IProgress<ulong> progress = null, CancellationToken cancellationToken = default)
         {
+            if (seeds.Contains(output))
+                throw new ArgumentException("seeds must not include the working/output stream");
+
             var header = cf.GetHeader();
 
             // remember data size, so that we don't scan past useful input
@@ -160,7 +163,7 @@ namespace zsyncnet.Sync
                 FindExistingBlocks(output, buffer, offset, header, remoteBlockSums, existingBlocks, output == input, progress);
             }
 
-            Logger.Debug($"Done in {(DateTime.Now-start).TotalSeconds:F2}");
+            Logger.Debug($"Finding blocks done in {(DateTime.Now-start).TotalSeconds:F2}s");
         }
 
 

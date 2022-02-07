@@ -7,12 +7,20 @@ using NLog;
 
 namespace zsyncnet.Sync
 {
+    /// <summary>
+    /// Downloader for a single remote file.
+    /// </summary>
     public class RangeDownloader : IRangeDownloader
     {
         private readonly Uri _fileUri;
         private readonly HttpClient _client;
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
+        /// <summary>
+        /// Creates a Downloader for a specific uri, using the given client.
+        /// </summary>
+        /// <param name="fileUri">The uri used in requests.</param>
+        /// <param name="client">The http client that will be used for requests.</param>
         public RangeDownloader(Uri fileUri, HttpClient client)
         {
             _fileUri = fileUri;
