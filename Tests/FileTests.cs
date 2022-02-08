@@ -93,15 +93,15 @@ namespace Tests
 
             var cts = new CancellationTokenSource();
 
-            downloader.OnDownload += () => cts.Cancel();
+            var firstRead = true;
+            downloader.OnRead += () =>
+            {
+                if (!firstRead) cts.Cancel();
+                firstRead = false;
+            };
 
-            try
-            {
-                Zsync.Sync(cf, downloader, _tempPath, null, cts.Token);
-            }
-            catch (OperationCanceledException)
-            {
-            }
+            Assert.Throws<OperationCanceledException>(() =>
+                Zsync.Sync(cf, downloader, _tempPath, null, cts.Token));
 
             Assert.AreEqual(new [] { "target.bin", "target.bin.part" }, _tempPath.EnumerateFiles().Select(fi => fi.Name).OrderBy(n => n.Length).ToArray());
 

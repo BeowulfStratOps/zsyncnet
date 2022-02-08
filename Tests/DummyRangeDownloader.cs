@@ -11,6 +11,7 @@ namespace Tests
         public long TotalBytesDownloaded { get; private set; }
         public long RangesDownloaded { get; private set; }
         public event Action? OnDownload;
+        public event Action? OnRead;
         private readonly Logger _logger = LogManager.GetCurrentClassLogger();
 
         public DummyRangeDownloader(byte[] data)
@@ -20,8 +21,11 @@ namespace Tests
 
         public Stream DownloadRange(long @from, long to)
         {
-            _logger.Trace($"Downloading range {from} to {to}");
-            var stream = new MemoryStream(_data, (int)from, (int)(to - from));
+            _logger.Trace($"Downloading range {from} count {to}");
+            var stream = new MemoryStreamWithEvents(_data, (int)from, (int)(to - from));
+
+            stream.OnRead += () => OnRead?.Invoke();
+
             TotalBytesDownloaded += to - from;
             RangesDownloaded++;
 
@@ -33,10 +37,31 @@ namespace Tests
         public Stream Download()
         {
             _logger.Trace("Downloading entire file");
-            var stream = new MemoryStream(_data);
+            var stream = new MemoryStreamWithEvents(_data);
             OnDownload?.Invoke();
 
             return stream;
         }
+    }
+
+
+    internal class MemoryStreamWithEvents : MemoryStream
+    {
+        public MemoryStreamWithEvents(byte[] data) : base(data)
+        {
+        }
+
+        public MemoryStreamWithEvents(byte[] data, int index, int count) : base(data, index, count)
+        {
+        }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            var result = base.Read(buffer, offset, count);
+            OnRead?.Invoke();
+            return result;
+        }
+
+        public event Action? OnRead;
     }
 }

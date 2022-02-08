@@ -76,7 +76,7 @@ namespace zsyncnet
                 var downloadStream = downloader.Download();
 
                 var stream = new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite);
-                downloadStream.CopyToWithProgress(stream, 2024, progress);
+                downloadStream.CopyToWithProgress(stream, 2024, progress, cancellationToken);
 
                 File.SetLastWriteTime(path, controlFile.GetHeader().MTime);
                 return;

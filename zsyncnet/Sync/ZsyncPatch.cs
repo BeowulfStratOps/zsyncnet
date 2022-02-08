@@ -60,7 +60,7 @@ namespace zsyncnet.Sync
                 var to = (blockIndex + blockCount) * (long)header.BlockSize;
                 if (to > header.Length) to = header.Length;
                 var content = downloader.DownloadRange(from, to);
-                content.CopyToWithProgress(output, 1024 * 1024, progress);
+                content.CopyToWithProgress(output, 1024 * 1024, progress, cancellationToken);
             }
 
             output.SetLength(header.Length);

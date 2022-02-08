@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 using NUnit.Framework;
 using Tests.Util;
 using zsyncnet;
@@ -241,6 +242,35 @@ namespace Tests
             random.NextBytes(data);
 
             DoTestFullDownload(data, 4194304);
+        }
+
+        [Test]
+        public void AbortDownloadSection()
+        {
+            var data = new byte[2048 * 2048];
+            Array.Fill(data, (byte)1);
+            var seed = new byte[data.Length];
+
+            var cts = new CancellationTokenSource();
+
+            var cf = ZsyncMake.MakeControlFile(new MemoryStream(data), DateTime.Now, "test.bin");
+            var downloader = new DummyRangeDownloader(data);
+
+            var reads = 0;
+
+            downloader.OnRead += () =>
+            {
+                reads++;
+                cts.Cancel();
+            };
+
+            var result = new MemoryStream();
+
+            Assert.Throws<OperationCanceledException>(() =>
+                Zsync.Sync(cf, new List<Stream>(), downloader, result, cancellationToken: cts.Token));
+
+            Assert.AreNotEqual(result, data);
+            Assert.AreEqual(1, reads);
         }
     }
 }
