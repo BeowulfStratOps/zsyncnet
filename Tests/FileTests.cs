@@ -112,8 +112,11 @@ namespace Tests
 
             // just making sure cancellation worked..
             Assert.AreNotEqual(data, File.ReadAllBytes(_targetFile.FullName));
+
+            Assert.AreNotEqual(data, File.ReadAllBytes(partPath));
             Assert.AreEqual(1 * RandomDataLength, downloader.TotalBytesDownloaded);
             Assert.AreEqual(1, downloader.RangesDownloaded);
+            Assert.Less(File.ReadAllBytes(partPath).Length, data.Length);
         }
 
         [Test]

@@ -24,6 +24,10 @@ namespace zsyncnet.Sync
 
             // remember data size, so that we don't scan past useful input
             var existingOutputSize = output.Length;
+
+            // before we have done any checking, assume that all of the file contains useful data
+            var writtenLength = output.Length;
+
             // set length here to reserve space.
             if (output.Length < header.Length)
                 output.SetLength(header.Length);
@@ -40,27 +44,43 @@ namespace zsyncnet.Sync
 
             // we'll be writing to this stream, so handle it first, before we overwrite anything useful
             // .part should also only have useful data, so it doesn't hurt do check first
-            FindExistingBlocks(output, output, existingOutputSize, existingBlocks, header, checksumTable, progress, cancellationToken);
-
-            foreach (var seed in seeds)
+            try
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                FindExistingBlocks(output, seed, seed.Length, existingBlocks, header, checksumTable, progress, cancellationToken);
+                FindExistingBlocks(output, output, existingOutputSize, existingBlocks, header, checksumTable, progress, cancellationToken);
+
+                foreach (var seed in seeds)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    FindExistingBlocks(output, seed, seed.Length, existingBlocks, header, checksumTable, progress, cancellationToken);
+                }
+
+                // we checked all local data now and copied it into the output. if there was any data beyond that, it was junk
+                writtenLength = existingBlocks.Any() ? (existingBlocks.Max() + 1) * header.BlockSize : 0;
+
+                Logger.Debug($"Total existing blocks {existingBlocks.Count}");
+
+                var downloadRanges = BuildDownloadRanges(header.Length, header.BlockSize, existingBlocks);
+
+                foreach (var (blockIndex, blockCount) in downloadRanges)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    output.Position = blockIndex * header.BlockSize;
+                    var from = blockIndex * (long)header.BlockSize;
+                    var to = (blockIndex + blockCount) * (long)header.BlockSize;
+                    if (to > header.Length) to = header.Length;
+
+                    // as we download, the amount of "useful" data in the output grows
+                    if (to > writtenLength) writtenLength = to;
+
+                    var content = downloader.DownloadRange(from, to);
+                    content.CopyToWithProgress(output, 1024 * 1024, progress, cancellationToken);
+                }
             }
-
-            Logger.Debug($"Total existing blocks {existingBlocks.Count}");
-
-            var downloadRanges = BuildDownloadRanges(header.Length, header.BlockSize, existingBlocks);
-
-            foreach (var (blockIndex, blockCount) in downloadRanges)
+            catch (OperationCanceledException e)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                output.Position = blockIndex * header.BlockSize;
-                var from = blockIndex * (long)header.BlockSize;
-                var to = (blockIndex + blockCount) * (long)header.BlockSize;
-                if (to > header.Length) to = header.Length;
-                var content = downloader.DownloadRange(from, to);
-                content.CopyToWithProgress(output, 1024 * 1024, progress, cancellationToken);
+                Logger.Debug("Sync canceled. Shrinking output-file");
+                output.SetLength(writtenLength);
+                throw;
             }
 
             output.SetLength(header.Length);
