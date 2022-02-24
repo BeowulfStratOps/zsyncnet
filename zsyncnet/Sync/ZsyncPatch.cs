@@ -76,7 +76,7 @@ namespace zsyncnet.Sync
                     content.CopyToWithProgress(output, 1024 * 1024, progress, cancellationToken);
                 }
             }
-            catch (OperationCanceledException e)
+            catch (OperationCanceledException)
             {
                 Logger.Debug("Sync canceled. Shrinking output-file");
                 output.SetLength(writtenLength);
