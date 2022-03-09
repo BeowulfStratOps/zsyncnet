@@ -141,7 +141,7 @@ namespace zsyncnet.Sync
         /// </summary>
         /// <returns>Dict remoteBlockIndex -> localOffset</returns>
         private static void FindExistingBlocks(Stream output, Stream input, long inputLength, HashSet<int> existingBlocks,
-            Header header, CheckSumTable remoteBlockSums, IProgress<ulong> progress, CancellationToken cancellationToken)
+            ControlFileHeader header, CheckSumTable remoteBlockSums, IProgress<ulong> progress, CancellationToken cancellationToken)
         {
             if (inputLength < header.BlockSize * 2) return;
 
@@ -187,7 +187,7 @@ namespace zsyncnet.Sync
         }
 
 
-        private static void FindExistingBlocks(Stream output, byte[] inputBuffer, long bufferOffset, Header header,
+        private static void FindExistingBlocks(Stream output, byte[] inputBuffer, long bufferOffset, ControlFileHeader header,
             CheckSumTable remoteBlockSums, HashSet<int> existingBlocks, bool isOutputStream,
             IProgress<ulong> progress)
         {
@@ -285,7 +285,7 @@ namespace zsyncnet.Sync
             }
         }
 
-        private static void CopyBlock(Stream output, int blockIndex, byte[] source, int index, Header header, IProgress<ulong> progress)
+        private static void CopyBlock(Stream output, int blockIndex, byte[] source, int index, ControlFileHeader header, IProgress<ulong> progress)
         {
             // TODO: don't need to copy if input == output and the position is the same (ie data is where it's supposed to be already)
             output.Position = blockIndex * header.BlockSize;

@@ -13,10 +13,10 @@ namespace zsyncnet
     /// </summary>
     public class ControlFile
     {
-        private readonly Header _header;
+        private readonly ControlFileHeader _header;
         private readonly List<BlockSum> _blockSums;
 
-        internal ControlFile(Header header, List<BlockSum> blockSums)
+        internal ControlFile(ControlFileHeader header, List<BlockSum> blockSums)
         {
             _header = header;
             _blockSums = blockSums;
@@ -33,7 +33,7 @@ namespace zsyncnet
             // TODO: use streams all the way
             var (first, last) = SplitFileRead(stream.ToByteArray());
 
-            _header = new Header(first);
+            _header = new ControlFileHeader(first);
             _blockSums = BlockSum.ReadBlockSums(last, _header.GetNumberOfBlocks(), _header.WeakChecksumLength,
                 _header.StrongChecksumLength);
             LogManager.GetCurrentClassLogger().Debug($"Total blocks for {_header.Filename}: {_blockSums.Count}, expected {_header.GetNumberOfBlocks()}");
@@ -43,7 +43,7 @@ namespace zsyncnet
             }
         }
 
-        internal Header GetHeader()
+        public ControlFileHeader GetHeader()
         {
             return _header;
         }

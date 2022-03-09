@@ -4,7 +4,7 @@ using System.Text;
 
 namespace zsyncnet.Control
 {
-    internal class Header
+    public class ControlFileHeader
     {
         public string Version { get; }
         public string Filename { get; }
@@ -28,7 +28,7 @@ namespace zsyncnet.Control
         /// <param name="sequenceMatches"></param>
         /// <param name="url"></param>
         /// <param name="sha1"></param>
-        public Header(string version, string filename, DateTime mTime, int blockSize, long length, int sequenceMatches, int weakChecksumLength, int strongChecksumLength ,string url, string sha1)
+        internal ControlFileHeader(string version, string filename, DateTime mTime, int blockSize, long length, int sequenceMatches, int weakChecksumLength, int strongChecksumLength ,string url, string sha1)
         {
             Version = version;
             Filename = filename;
@@ -54,7 +54,7 @@ namespace zsyncnet.Control
         /// Reads the header of a control file
         /// </summary>
         /// <param name="input">byte[] representing header</param>
-        public Header(byte[] input)
+        public ControlFileHeader(byte[] input)
         {
             string headerText = Encoding.ASCII.GetString(input);
             string line;

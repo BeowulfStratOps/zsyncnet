@@ -37,7 +37,7 @@ namespace zsyncnet
             file.Position = 0;
             var sha1 = crypto.ComputeHash(file).ToHex();
 
-            var header = new Header(ZsyncVersion, name, lastWrite, blockSize, fileLength, sequenceMatches,
+            var header = new ControlFileHeader(ZsyncVersion, name, lastWrite, blockSize, fileLength, sequenceMatches,
                 weakChecksumLength, strongCheckSumLength, null, sha1);
 
             return new ControlFile(header, checkSums);
